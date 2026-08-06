@@ -147,6 +147,12 @@ Once applied, Argo CD will automatically discover, deploy, and continuously reco
 
 ### 5. Access Argo CD Dashboard
 
+To access the Argo CD dashboard running on your remote bare-metal server from your local PC browser at https://localhost:8080, you need to create an SSH Local Port Forwarding tunnel.
+
+```bash
+ssh -L 8080:localhost:8080 user@<SERVER_IP>
+```
+
 Retrieve the initial admin password to log into the Argo CD UI:
 
 ```bash
@@ -156,4 +162,5 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 # Fetch the auto-generated initial password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
+
 Navigate to https://localhost:8080 in your browser (Username: admin).
