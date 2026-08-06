@@ -4,17 +4,18 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    # Tell Traefik to handle SSL passthrough / backend HTTPS protocol
     ingress.kubernetes.io/ssl-redirect: "true"
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/service.serversscheme: https
-    # Optional: use cert-manager for automatic TLS certificates
-    cert-manager.io/cluster-issuer: "selfsigned-issuer"
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - argocd.homelab.com
+      secretName: argocd-secret-tls
   rules:
-    - host: argocd.homelab.com # Your preferred local domain
+    - host: argocd.homelab.com
       http:
         paths:
           - path: /
@@ -24,7 +25,3 @@ spec:
                 name: argocd-server
                 port:
                   number: 443
-  tls:
-    - hosts:
-        - argocd.homelab.com
-      secretName: argocd-secret-tls
