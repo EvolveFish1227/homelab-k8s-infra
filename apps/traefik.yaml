@@ -17,6 +17,7 @@ spec:
           - "--serverstransport.insecureskipverify=true"
         providers:
           kubernetesIngress:
+            enabled: true
             publishedService:
               enabled: true
               pathOverride: "kube-system/traefik-ingress"
