@@ -26,5 +26,5 @@ spec:
                   number: 443
   tls:
     - hosts:
-        - argocd.homelab.local
+        - argocd.homelab.com
       secretName: argocd-secret-tls
