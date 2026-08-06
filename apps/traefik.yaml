@@ -16,7 +16,10 @@ spec:
         ports:
           web:
             redirectTo:
-              port: websecure
+              entryPoint:
+                to: websecure
+                scheme: https
+                permanent: true
         ingressClass:
           enabled: true
           isDefaultClass: true
