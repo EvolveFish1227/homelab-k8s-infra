@@ -10,6 +10,7 @@ A bare-metal Kubernetes cluster running on home hardware, engineered as a centra
 ## 🏗️ Architecture Overview
 
 This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance Network File System (NFS) and SMB/CIFS storage cluster.
+```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                              GitHub Repo                               │
 │                     (homelab-k8s-infra / main)                         │
@@ -39,7 +40,7 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 ▼                         ▼                         ▼
 📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
 (Plex/Jellyfin)            (NFS/SMB Shares)           (File Backups)
-
+```
 ---
 
 ## 🛠️ Tech Stack & Key Components
