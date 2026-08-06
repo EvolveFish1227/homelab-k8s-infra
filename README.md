@@ -56,6 +56,17 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 ## 📂 Repository Structure
 
 ```text
+Currently
+homelab-k8s-infra/
+├── README.md                       # System documentation & architectural guide
+├── bootstrap/                      # One-time cluster setup (Manual initialization)
+│   └── root-app.yaml               # App-of-Apps master entrypoint
+├── apps/                           # Argo CD Application CRDs
+│   ├── traefik.yaml                # Traefik v3 Ingress controller app
+│   └── argocd/                     # Argo CD application configuration
+│       └── ingress.yaml            # Ingress rules for argocd.homelab.com
+└── infrastructure/                 # Manifests, Helm values & storage specs
+example
 homelab-k8s-infra/
 ├── README.md                       # System documentation & architectural guide
 ├── bootstrap/                      # One-time cluster setup (Manual initialization)
