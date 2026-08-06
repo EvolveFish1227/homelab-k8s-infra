@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     # UPDATE THIS to your GitHub repository URL
-    repoURL: 'https://github.com/your-username/homelab-k8s-infra.git'
+    repoURL: 'https://github.com/EvolveFish1227/homelab-k8s-infra.git'
     targetRevision: HEAD
     path: apps
   destination:
