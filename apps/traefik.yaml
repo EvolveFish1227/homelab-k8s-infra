@@ -13,6 +13,8 @@ spec:
     targetRevision: "41.1.1"
     helm:
       values: |
+        additionalArguments:
+          - "--serverstransport.insecureskipverify=true"
         providers:
           kubernetesIngress:
             publishedService:
