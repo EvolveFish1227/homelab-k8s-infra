@@ -109,7 +109,7 @@ Install k3s, disabling default Traefik and local-path storage to allow full GitO
 ```bash
 
 # Install k3s with custom feature flags
-curl -sfL [https://get.k3s.io](https://get.k3s.io) | sh -s - --disable traefik --disable local-storage
+curl -sfL https://get.k3s.io | sh -s - --disable traefik --disable local-storage
 
 # Configure kubeconfig permissions for the local user
 mkdir -p ~/.kube
