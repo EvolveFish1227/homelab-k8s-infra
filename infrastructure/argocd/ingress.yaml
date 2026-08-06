@@ -14,7 +14,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: argocd.homelab # Your preferred local domain
+    - host: argocd.homelab.com # Your preferred local domain
       http:
         paths:
           - path: /
