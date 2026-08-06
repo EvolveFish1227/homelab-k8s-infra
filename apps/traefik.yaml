@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: 'https://helm.traefik.io/traefik'
     chart: traefik
-    targetRevision: "41.1.1" 
+    targetRevision: "41.1.1"
     helm:
       values: |
         ports:
@@ -30,8 +30,6 @@ spec:
             expose:
               default: true
             exposedPort: 443
-            tls:
-              enabled: true
         ingressClass:
           enabled: true
           isDefaultClass: true
