@@ -59,13 +59,18 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 homelab-k8s-infra/
 ├── README.md                       # System documentation & architectural guide
 ├── bootstrap/                      # One-time cluster setup (Manual initialization)
-│   ├── argocd/                     # Argo CD manifests
+│   ├── argocd/                     # Argo CD deployment & initial secret manifests
 │   └── root-app.yaml               # App-of-Apps master entrypoint
 ├── apps/                           # Argo CD Application CRDs
+│   ├── traefik.yaml                # Traefik v3 Ingress controller app
+│   ├── cert-manager.yaml           # Automated TLS certificate management app
 │   ├── nfs-provisioner.yaml        # Automatic NFS volume provisioner app
 │   ├── smb-share.yaml              # Local network share application
 │   └── media-server.yaml           # Media streaming stack (Plex/Jellyfin)
 └── infrastructure/                 # Manifests, Helm values & storage specs
+    ├── ingress/
+    │   ├── traefik/                # Traefik Helm configurations & custom entrypoints
+    │   └── cert-manager/           # ClusterIssuers (self-signed / Let's Encrypt)
     ├── storage/
     │   ├── nfs-provisioner/        # StorageClass & provisioner configs
     │   └── smb-share/              # Samba deployment & PVC definitions
