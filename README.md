@@ -15,9 +15,9 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 │                              GitHub Repo                               │
 │                     (homelab-k8s-infra / main)                         │
 └───────────────────────────────────┬────────────────────────────────────┘
-│
-│ (GitOps Auto-Sync)
-▼
+                                    │
+                                    │ (GitOps Auto-Sync)
+                                    ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                              k3s Cluster                               │
 │                                                                        │
@@ -33,13 +33,13 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 │  │ cert-manager)│         │ (RWX Mode)   │         │ (SMB / Plex) │    │
 │  └──────────────┘         └──────────────┘         └──────────────┘    │
 └───────────────────────────────────┬────────────────────────────────────┘
-│
-(Local Network Traffic)
-│
-┌─────────────────────────┼─────────────────────────┐
-▼                         ▼                         ▼
-📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
-(Plex/Jellyfin)            (NFS/SMB Shares)           (File Backups)
+                                    │
+                                    (Local Network Traffic)
+                                    │
+          ┌─────────────────────────┼─────────────────────────┐
+          ▼                         ▼                         ▼
+         📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
+        (Plex/Jellyfin)            (NFS/SMB Shares)           (File Backups)
 ```
 ---
 
