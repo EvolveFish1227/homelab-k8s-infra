@@ -4,6 +4,7 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
+    cert-manager.io/cluster-issuer: selfsigned-issuer
     ingress.kubernetes.io/ssl-redirect: "true"
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
@@ -12,7 +13,7 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - argocd.homelab.com
+        - argocd.homelab.com  # Fixed: changed .local to .com
       secretName: argocd-secret-tls
   rules:
     - host: argocd.homelab.com
