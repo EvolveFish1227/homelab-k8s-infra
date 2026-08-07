@@ -10,6 +10,7 @@ A bare-metal Kubernetes cluster running on home hardware, engineered as a centra
 ## 🏗️ Architecture Overview
 
 This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance Network File System (NFS) and SMB/CIFS storage cluster.
+
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                              GitHub Repo                               │
@@ -41,22 +42,23 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
          📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
         (Plex/Jellyfin)            (NFS/SMB Shares)           (File Backups)
 ```
+
 ---
 
 ## 🛠️ Tech Stack & Key Components
 
 - **Cluster Engine:** `k3s` (Lightweight Kubernetes running on bare-metal Linux)
 - **Continuous Delivery & GitOps:** Argo CD (App-of-Apps Pattern)
+- **Ingress Controller:** Traefik v3 (Managed declaratively via Helm & Argo CD)
 - **Storage Subsystem:** NFS Subdir External Provisioner (`ReadWriteMany` / RWX volume support)
 - **Network Sharing Protocols:** Samba/CIFS (`Port 445`) and NFS (`Port 2049`) for direct LAN access
-- **Ingress & Networking:** Traefik Ingress Controller + `cert-manager`
+- **Certificate Management:** `cert-manager`
 
 ---
 
 ## 📂 Repository Structure
 
 ```text
-Currently
 homelab-k8s-infra/
 ├── README.md                       # System documentation & architectural guide
 ├── bootstrap/                      # One-time cluster setup (Manual initialization)
@@ -66,27 +68,10 @@ homelab-k8s-infra/
 │   └── argocd/                     # Argo CD application configuration
 │       └── ingress.yaml            # Ingress rules for argocd.homelab.com
 └── infrastructure/                 # Manifests, Helm values & storage specs
-example
-homelab-k8s-infra/
-├── README.md                       # System documentation & architectural guide
-├── bootstrap/                      # One-time cluster setup (Manual initialization)
-│   └── root-app.yaml               # App-of-Apps master entrypoint
-├── apps/                           # Argo CD Application CRDs
-│   ├── traefik.yaml                # Traefik v3 Ingress controller app
-│   ├── cert-manager.yaml           # Automated TLS certificate management app
-│   ├── nfs-provisioner.yaml        # Automatic NFS volume provisioner app
-│   ├── smb-share.yaml              # Local network share application
-│   └── media-server.yaml           # Media streaming stack (Plex/Jellyfin)
-└── infrastructure/                 # Manifests, Helm values & storage specs
-    ├── ingress/
-    │   ├── traefik/                # Traefik Helm configurations & custom entrypoints
-    │   └── cert-manager/           # ClusterIssuers (self-signed / Let's Encrypt)
-    ├── storage/
-    │   ├── nfs-provisioner/        # StorageClass & provisioner configs
-    │   └── smb-share/              # Samba deployment & PVC definitions
-    └── media/
-        └── jellyfin/               # Media server mounting shared NFS drives
 ```
+
+---
+
 ## 💾 Storage Architecture & Design Decisions
 
 ### 1. Multi-Read / Multi-Write (`ReadWriteMany`) Access Mode
@@ -105,6 +90,8 @@ To guarantee zero data loss during node rebuilds, cluster upgrades, or pod failu
 * **K8s Abstraction:** Kubernetes workloads interact strictly through persistent volume abstractions layered on top of host mounts. 
 * **Engineering Impact:** Total cluster teardown or re-initialization does not alter underlying datasets, preserving all media and configuration states.
 
+---
+
 ## 🚀 Quick Start & Bootstrap Procedure
 
 This guide walks through initializing a bare-metal node, deploying the k3s control plane, and bootstrapping GitOps with Argo CD.
@@ -117,13 +104,13 @@ Prepare the dedicated local storage mount point on the host operating system bef
 sudo mkdir -p /mnt/storage
 sudo chmod 777 /mnt/storage
 ```
-### 2. Provisions k3s Control Plane
 
-Install k3s, disabling default Traefik and local-path storage to allow full GitOps lifecycle management:
+### 2. Provision k3s Control Plane
+
+Install k3s while disabling its built-in Traefik v2 and default local storage. This allows us to manage Traefik v3 and storage declaratively via Argo CD:
 
 ```bash
-
-# Install k3s with custom feature flags
+# Install k3s disabling built-in Traefik and local storage
 curl -sfL https://get.k3s.io | sh -s - --disable traefik --disable local-storage
 
 # Configure kubeconfig permissions for the local user
@@ -137,45 +124,40 @@ kubectl get nodes
 
 ### 3. Deploy Argo CD Control Plane
 
-Install the Argo CD engine into the argocd namespace:
+Install the Argo CD engine into the `argocd` namespace:
 
 ```bash
-
 # Create namespace and apply core manifests
 kubectl create namespace argocd
-kubectl apply -n argocd -f [https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml](https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml)
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Wait for Argo CD components to reach Running state
 kubectl rollout status deployment argocd-server -n argocd
 ```
 
-### 4. Bootstrap Root GitOps Application
+### 4. Bootstrap Root GitOps Application (Deploys Traefik v3)
 
-Hand over cluster management to Argo CD by applying the master App-of-Apps manifest:
+Hand over cluster management to Argo CD by applying the master App-of-Apps manifest. This will automatically deploy Traefik v3 and the Argo CD Ingress rules from your repository:
 
 ```bash
-
 # Point Argo CD to this GitHub repository
 kubectl apply -f bootstrap/root-app.yaml
 ```
-Once applied, Argo CD will automatically discover, deploy, and continuously reconcile all workloads declared inside the apps/ directory.
+
+*Once applied, Argo CD automatically reconciles `apps/traefik.yaml` to spin up Traefik v3 as your primary cluster Ingress Controller, alongside all other applications declared in `apps/`.*
 
 ### 5. Access Argo CD Dashboard
 
-To access the Argo CD dashboard running on your remote bare-metal server from your local PC browser at https://localhost:8080, you need to create an SSH Local Port Forwarding tunnel.
+Retrieve the auto-generated initial password:
 
 ```bash
-ssh -L 8080:localhost:8080 user@<SERVER_IP>
-```
-
-Retrieve the initial admin password to log into the Argo CD UI:
-
-```bash
-# Port-forward the Argo CD server to local port 8080
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-
-# Fetch the auto-generated initial password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
-Navigate to https://localhost:8080 in your browser (Username: admin).
+Once DNS or `/etc/hosts` resolves `argocd.homelab.com` to your node's IP, navigate directly to:
+
+```text
+https://argocd.homelab.com
+```
+
+*(Alternatively, port-forward using `kubectl port-forward svc/argocd-server -n argocd 8080:443` and visit `https://localhost:8080`).*
