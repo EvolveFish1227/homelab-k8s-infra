@@ -41,6 +41,7 @@ spec:
         ingressClass:
           enabled: true
           isDefaultClass: true
+          name: traefik-ingress
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: kube-system
