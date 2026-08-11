@@ -21,7 +21,7 @@ data:
     #!/bin/sh
     set -eu
     rm -rf "$VOL_DIR"
-  helperPod: |-
+  helperPod.yaml: |-
     apiVersion: v1
     kind: Pod
     metadata:

@@ -8,9 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy'
+    repoURL: 'https://github.com/EvolveFish1227/homelab-k8s-infra.git'
     targetRevision: HEAD
-    path: '.'
+    path: infrastructure/storage
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: local-path-storage
