@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - argocd.argoproj.io/resources-finalizer
+spec:
+  project: default
+  source:
+    repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: kube-prometheus-stack
+    targetRevision: "61.3.0"
+    helm:
+      values: |
+        grafana:
+          persistence:
+            enabled: true
+            storageClassName: "local-path"
+            accessModes:
+              - ReadWriteOnce
+            size: 2Gi
+          ingress:
+            enabled: true
+            ingressClassName: "traefik-ingress"
+            annotations:
+              cert-manager.io/cluster-issuer: "selfsigned-issuer"
+              traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - grafana.homelab.com
+            path: /
+            tls:
+              - secretName: grafana-secret-tls
+                hosts:
+                  - grafana.homelab.com
+        prometheus:
+          prometheusSpec:
+            retention: 10d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: "local-path"
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 10Gi
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
