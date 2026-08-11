@@ -66,12 +66,16 @@ homelab-k8s-infra/
 ├── apps/                           # Argo CD Application CRDs
 │   ├── traefik.yaml                # Traefik v3 Ingress controller app
 │   ├── local-path-provisioner.yaml # Local path provisioner storage app
+│   ├── monitoring.yaml             # Prometheus & Grafana monitoring stack app
+│   ├── monitoring-resources.yaml   # Custom Grafana dashboards & alerts app
 │   └── argocd/                     # Argo CD application configuration
 │       └── ingress.yaml            # Ingress rules for argocd.homelab.com
 └── infrastructure/                 # Manifests, Helm values & storage specs
-    └── storage/                    # Kubernetes storage engine configurations
-        ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
-        └── local-path-provisioner.yaml # RBAC, Deployment, and StorageClass manifests
+    ├── storage/                    # Kubernetes storage engine configurations
+    │   ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
+    │   └── local-path-provisioner.yaml # RBAC, Deployment, and StorageClass manifests
+    └── monitoring/                 # Custom Grafana dashboards and rules
+        └── custom-dashboard-cluster.yaml # ConfigMap containing customized Grafana dashboard JSON
 ```
 
 ---
