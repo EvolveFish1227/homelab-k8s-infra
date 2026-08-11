@@ -65,9 +65,13 @@ homelab-k8s-infra/
 │   └── root-app.yaml               # App-of-Apps master entrypoint
 ├── apps/                           # Argo CD Application CRDs
 │   ├── traefik.yaml                # Traefik v3 Ingress controller app
+│   ├── local-path-provisioner.yaml # Local path provisioner storage app
 │   └── argocd/                     # Argo CD application configuration
 │       └── ingress.yaml            # Ingress rules for argocd.homelab.com
 └── infrastructure/                 # Manifests, Helm values & storage specs
+    └── storage/                    # Kubernetes storage engine configurations
+        ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
+        └── local-path-provisioner.yaml # RBAC, Deployment, and StorageClass manifests
 ```
 
 ---
@@ -135,16 +139,16 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl rollout status deployment argocd-server -n argocd
 ```
 
-### 4. Bootstrap Root GitOps Application (Deploys Traefik v3)
+### 4. Bootstrap Root GitOps Application (Deploys Traefik v3 & Storage Engine)
 
-Hand over cluster management to Argo CD by applying the master App-of-Apps manifest. This will automatically deploy Traefik v3 and the Argo CD Ingress rules from your repository:
+Hand over cluster management to Argo CD by applying the master App-of-Apps manifest. This will automatically deploy Traefik v3, the local-path-provisioner dynamic storage engine, and the Argo CD Ingress rules from your repository:
 
 ```bash
 # Point Argo CD to this GitHub repository
 kubectl apply -f bootstrap/root-app.yaml
 ```
 
-*Once applied, Argo CD automatically reconciles `apps/traefik.yaml` to spin up Traefik v3 as your primary cluster Ingress Controller, alongside all other applications declared in `apps/`.*
+*Once applied, Argo CD automatically reconciles `apps/traefik.yaml` and `apps/local-path-provisioner.yaml` to spin up Traefik v3 as your primary cluster Ingress Controller and the dynamic local storage engine, alongside all other applications declared in `apps/`.*
 
 ### 5. Access Argo CD Dashboard
 
