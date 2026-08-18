@@ -1,0 +1,82 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://immich-app.github.io/immich-charts'
+    chart: immich
+    targetRevision: "0.8.4"
+    helm:
+      values: |
+        env:
+          DB_HOSTNAME: '{{ .Release.Name }}-postgresql'
+          DB_DATABASE_NAME: 'immich'
+          DB_USERNAME: 'postgres'
+          REDIS_HOSTNAME: '{{ .Release.Name }}-redis-master'
+
+        immich:
+          persistence:
+            library:
+              enabled: true
+              size: 500Gi
+              storageClass: local-path
+
+        postgresql:
+          enabled: true
+          image:
+            repository: tensorchord/pgvecto-rs
+            tag: pg16-v0.2.1
+          auth:
+            postgresPassword: "ImmichSuperSecretDBPassword123"
+            database: immich
+          primary:
+            persistence:
+              enabled: true
+              size: 20Gi
+              storageClass: local-path
+
+        redis:
+          enabled: true
+          architecture: standalone
+          auth:
+            enabled: false
+
+        machine-learning:
+          enabled: true
+          persistence:
+            cache:
+              enabled: true
+              size: 10Gi
+              storageClass: local-path
+
+        server:
+          ingress:
+            main:
+              enabled: true
+              ingressClassName: traefik
+              annotations:
+                cert-manager.io/cluster-issuer: selfsigned-issuer
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              hosts:
+                - host: photos.homelab.com
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls:
+                - hosts:
+                    - photos.homelab.com
+                  secretName: immich-tls-cert
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: immich
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
