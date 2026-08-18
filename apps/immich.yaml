@@ -59,11 +59,13 @@ spec:
               storageClass: local-path
 
         server:
-          startupProbe:
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            failureThreshold: 30
-            timeoutSeconds: 5
+          probes:
+            startup:
+              spec:
+                initialDelaySeconds: 15
+                periodSeconds: 10
+                failureThreshold: 120
+                timeoutSeconds: 5
           ingress:
             main:
               enabled: true
