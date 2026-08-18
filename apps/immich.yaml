@@ -19,6 +19,7 @@ spec:
           DB_USERNAME: 'immich'
           DB_PASSWORD: 'ImmichSuperSecretDBPassword123'
           REDIS_HOSTNAME: 'immich-redis-master'
+
         immich:
           persistence:
             library:
@@ -32,6 +33,7 @@ spec:
           auth:
             username: immich
             password: "ImmichSuperSecretDBPassword123"
+            postgresPassword: "ImmichSuperSecretDBPassword123"
             database: immich
           primary:
             persistence:
@@ -69,6 +71,7 @@ spec:
               annotations:
                 cert-manager.io/cluster-issuer: selfsigned-issuer
                 traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                traefik.ingress.kubernetes.io/router.tls: "true"
               hosts:
                 - host: photos.homelab.com
                   paths:
