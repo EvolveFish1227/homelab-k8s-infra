@@ -169,3 +169,16 @@ https://argocd.homelab.com
 ```
 
 *(Alternatively, port-forward using `kubectl port-forward svc/argocd-server -n argocd 8080:443` and visit `https://localhost:8080`).*
+
+---
+
+## 📱 Deployed Applications
+
+The following primary web services are deployed and managed under GitOps:
+
+### 📸 Immich (Self-Hosted Photo Backup Engine)
+* **URL:** [https://photos.homelab.com](https://photos.homelab.com)
+* **Configuration:** Manifest declared in `apps/immich.yaml`.
+* **Database Backend:** Implemented with `postgresql` using `tensorchord/pgvecto-rs` for vector-enabled AI search. Managed cleanly via a custom `immich` superuser credential.
+* **Storage Engine:** High-capacity 500Gi Persistent Volume (`immich-library-pvc`) dynamic local-path mount.
+* **Resiliency Engineering:** Configured with an optimized `probes.startup` grace period of **20 minutes** (120 attempts × 10s) to permit seamless, uninterrupted geodata map indexing and database migrations on startup.
