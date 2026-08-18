@@ -22,9 +22,7 @@ spec:
         immich:
           persistence:
             library:
-              enabled: true
-              size: 500Gi
-              storageClass: local-path
+              existingClaim: immich-library-pvc
 
         postgresql:
           enabled: true
