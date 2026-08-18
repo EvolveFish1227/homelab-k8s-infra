@@ -16,7 +16,7 @@ spec:
         env:
           DB_HOSTNAME: 'immich-postgresql'
           DB_DATABASE_NAME: 'immich'
-          DB_USERNAME: 'postgres'
+          DB_USERNAME: 'immich'
           DB_PASSWORD: 'ImmichSuperSecretDBPassword123'
           REDIS_HOSTNAME: 'immich-redis-master'
         immich:
@@ -30,7 +30,8 @@ spec:
             repository: tensorchord/pgvecto-rs
             tag: pg16-v0.2.1
           auth:
-            postgresPassword: "ImmichSuperSecretDBPassword123"
+            username: immich
+            password: "ImmichSuperSecretDBPassword123"
             database: immich
           primary:
             persistence:
