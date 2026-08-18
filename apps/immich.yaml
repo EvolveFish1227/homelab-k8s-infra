@@ -14,12 +14,11 @@ spec:
     helm:
       values: |
         env:
-          DB_HOSTNAME: '{{ .Release.Name }}-postgresql'
+          DB_HOSTNAME: 'immich-postgresql'
           DB_DATABASE_NAME: 'immich'
           DB_USERNAME: 'postgres'
           DB_PASSWORD: 'ImmichSuperSecretDBPassword123'
-          REDIS_HOSTNAME: '{{ .Release.Name }}-redis-master'
-
+          REDIS_HOSTNAME: 'immich-redis-master'
         immich:
           persistence:
             library:
