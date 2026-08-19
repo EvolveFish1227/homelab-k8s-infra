@@ -40,6 +40,9 @@ spec:
             postgresPassword: "ImmichSuperSecretDBPassword123"
             database: immich
           primary:
+            extraEnvVars:
+              - name: IGNORE_DATABASE_FSTYPE
+                value: "true"
             persistence:
               enabled: true
               size: 20Gi
