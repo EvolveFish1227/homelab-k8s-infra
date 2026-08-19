@@ -33,7 +33,7 @@ spec:
           image:
             registry: ghcr.io
             repository: immich-app/postgres
-            tag: 16-vectorchord0.4.3-pgvectors0.2.0
+            tag: 18-vectorchord1.1.1
           auth:
             username: immich
             password: "ImmichSuperSecretDBPassword123"
