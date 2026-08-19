@@ -13,6 +13,9 @@ spec:
     targetRevision: "0.8.4"
     helm:
       values: |
+        image:
+          tag: 3.1.0
+
         env:
           DB_HOSTNAME: 'immich-postgresql'
           DB_DATABASE_NAME: 'immich'
