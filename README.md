@@ -9,16 +9,16 @@ A bare-metal Kubernetes cluster running on home hardware, engineered as a centra
 
 ## 🏗️ Architecture Overview
 
-This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance Network File System (NFS) and SMB/CIFS storage cluster.
+This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance Network File System (NFS), SMB/CIFS storage cluster, and self-hosted photo/media platform.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                              GitHub Repo                               │
 │                     (homelab-k8s-infra / main)                         │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-                                    │ (GitOps Auto-Sync)
-                                    ▼
+│
+│ (GitOps Auto-Sync)
+▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                              k3s Cluster                               │
 │                                                                        │
@@ -29,9 +29,9 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 │         │                         │                         │          │
 │         ▼                         ▼                         ▼          │
 │  ┌──────────────┐         ┌──────────────┐         ┌──────────────┐    │
-│  │  Networking  │         │ Dynamic NFS  │         │ Home Shares  │    │
-│  │  (Traefik /  │         │ Provisioner  │         │ & Media      │    │
-│  │ cert-manager)│         │ (RWX Mode)   │         │ (SMB / Plex) │    │
+│  │  Networking  │         │ Dynamic NFS  │         │ Home Media & │    │
+│  │  (Traefik /  │         │ Provisioner  │         │ Photo Hub    │    │
+│  │ cert-manager)│         │ (RWX Mode)   │         │ (SMB/Immich) │    │
 │  └──────────────┘         └──────────────┘         └──────────────┘    │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
@@ -39,8 +39,8 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
                                     │
           ┌─────────────────────────┼─────────────────────────┐
           ▼                         ▼                         ▼
-         📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
-        (Plex/Jellyfin)            (NFS/SMB Shares)           (File Backups)
+          📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
+          (Plex/Jellyfin)            (NFS/SMB Shares)          (Immich Auto-Sync)
 ```
 
 ---
@@ -49,10 +49,13 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 
 - **Cluster Engine:** `k3s` (Lightweight Kubernetes running on bare-metal Linux)
 - **Continuous Delivery & GitOps:** Argo CD (App-of-Apps Pattern)
-- **Ingress Controller:** Traefik v3 (Managed declaratively via Helm & Argo CD)
-- **Storage Subsystem:** NFS Subdir External Provisioner (`ReadWriteMany` / RWX volume support)
-- **Network Sharing Protocols:** Samba/CIFS (`Port 445`) and NFS (`Port 2049`) for direct LAN access
-- **Certificate Management:** `cert-manager`
+- **Ingress Controller:** Traefik v3 (`traefik-ingress` class, managed via Helm & Argo CD)
+- **Certificate Management:** `cert-manager` (Automated internal & external TLS termination)
+- **Observability:** Prometheus Operator (`kube-prometheus-stack`) + Custom Grafana Dashboards
+- **Storage Subsystems:**
+  - **Local Dynamic Engine:** Rancher `local-path-provisioner` mapped to host storage pools (`/mnt/storage`)
+  - **Network Shares:** NFS Subdir External Provisioner (`ReadWriteMany` / RWX volume support)
+- **Network Protocols:** SMB/CIFS (`Port 445`), NFS (`Port 2049`), and HTTPS (`Port 443`)
 
 ---
 
@@ -63,18 +66,20 @@ homelab-k8s-infra/
 ├── README.md                       # System documentation & architectural guide
 ├── bootstrap/                      # One-time cluster setup (Manual initialization)
 │   └── root-app.yaml               # App-of-Apps master entrypoint
-├── apps/                           # Argo CD Application CRDs
-│   ├── traefik.yaml                # Traefik v3 Ingress controller app
+├── apps/                           # Argo CD Application manifests
+│   ├── argocd/                     # Argo CD ingress & service bindings
+│   │   └── ingress.yaml            # Ingress rules for argocd.homelab.com
+│   ├── traefik.yaml                # Traefik v3 Ingress controller configuration
+│   ├── cert-manager.yaml           # cert-manager deployment & cluster issuers
 │   ├── local-path-provisioner.yaml # Local path provisioner storage app
 │   ├── monitoring.yaml             # Prometheus & Grafana monitoring stack app
 │   ├── monitoring-resources.yaml   # Custom Grafana dashboards & alerts app
-│   └── argocd/                     # Argo CD application configuration
-│       └── ingress.yaml            # Ingress rules for argocd.homelab.com
+│   └── immich.yaml                 # Immich photo suite, DB, Redis, ML & Ingress
 └── infrastructure/                 # Manifests, Helm values & storage specs
     ├── storage/                    # Kubernetes storage engine configurations
     │   ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
     │   └── local-path-provisioner.yaml # RBAC, Deployment, and StorageClass manifests
-    └── monitoring/                 # Custom Grafana dashboards and rules
+    └── monitoring/                 # Custom Grafana dashboards and alert rules
         └── custom-dashboard-cluster.yaml # ConfigMap containing customized Grafana dashboard JSON
 ```
 
@@ -165,7 +170,11 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 Once DNS or `/etc/hosts` resolves `argocd.homelab.com` to your node's IP, navigate directly to:
 
 ```text
-https://argocd.homelab.com
+Argo CD: https://argocd.homelab.com
+
+Immich: https://photos.homelab.com
+
+Grafana: https://grafana.homelab.com
 ```
 
 *(Alternatively, port-forward using `kubectl port-forward svc/argocd-server -n argocd 8080:443` and visit `https://localhost:8080`).*
