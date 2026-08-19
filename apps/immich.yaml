@@ -43,6 +43,10 @@ spec:
             extraEnvVars:
               - name: IGNORE_DATABASE_FSTYPE
                 value: "true"
+            livenessProbe:
+              enabled: false
+            readinessProbe:
+              enabled: false
             persistence:
               enabled: true
               size: 20Gi
