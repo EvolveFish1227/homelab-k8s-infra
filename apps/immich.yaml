@@ -31,7 +31,8 @@ spec:
         postgresql:
           enabled: true
           image:
-            repository: ghcr.io/immich-app/postgres
+            registry: ghcr.io
+            repository: immich-app/postgres
             tag: 16-vectorchord1.1.1-pgvector0.8.5
           auth:
             username: immich
