@@ -31,8 +31,8 @@ spec:
         postgresql:
           enabled: true
           image:
-            repository: tensorchord/pgvecto-rs
-            tag: pg16-v0.2.1
+            repository: ghcr.io/immich-app/postgres
+            tag: 16-vectorchord1.1.1-pgvector0.8.5
           auth:
             username: immich
             password: "ImmichSuperSecretDBPassword123"
