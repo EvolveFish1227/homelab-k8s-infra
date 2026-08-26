@@ -1,5 +1,4 @@
 # Certificates & Keys
-*.crt
 *.key
 *.pem
 

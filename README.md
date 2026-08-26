@@ -50,7 +50,7 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 - **Cluster Engine:** `k3s` (Lightweight Kubernetes running on bare-metal Linux)
 - **Continuous Delivery & GitOps:** Argo CD (App-of-Apps Pattern)
 - **Ingress Controller:** Traefik v3 (`traefik-ingress` class, managed via Helm & Argo CD)
-- **Certificate Management:** `cert-manager` (Automated internal & external TLS termination)
+- **Certificate Management:** `cert-manager` (Automated internal CA and TLS termination via custom self-signed Root CA and `homelab-ca-issuer` ClusterIssuer)
 - **Observability:** Prometheus Operator (`kube-prometheus-stack`) + Custom Grafana Dashboards
 - **Storage Subsystems:**
   - **Local Dynamic Engine:** Rancher `local-path-provisioner` mapped to host storage pools (`/mnt/storage`)
@@ -70,17 +70,23 @@ homelab-k8s-infra/
 │   ├── argocd/                     # Argo CD ingress & service bindings
 │   │   └── ingress.yaml            # Ingress rules for argocd.homelab.com
 │   ├── traefik.yaml                # Traefik v3 Ingress controller configuration
-│   ├── cert-manager.yaml           # cert-manager deployment & cluster issuers
+│   ├── cert-manager.yaml           # cert-manager Helm chart deployment app
+│   ├── cert-manager-resources.yaml # cert-manager cluster issuers and certificates app
 │   ├── local-path-provisioner.yaml # Local path provisioner storage app
 │   ├── monitoring.yaml             # Prometheus & Grafana monitoring stack app
 │   ├── monitoring-resources.yaml   # Custom Grafana dashboards & alerts app
-│   └── immich.yaml                 # Immich photo suite, DB, Redis, ML & Ingress
+│   ├── immich.yaml                 # Immich photo suite, DB, Redis, ML & Ingress
+│   └── immich-resources.yaml       # Immich persistent volume claim app
 └── infrastructure/                 # Manifests, Helm values & storage specs
     ├── storage/                    # Kubernetes storage engine configurations
     │   ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
     │   └── local-path-provisioner.yaml # RBAC, Deployment, and StorageClass manifests
-    └── monitoring/                 # Custom Grafana dashboards and alert rules
-        └── custom-dashboard-cluster.yaml # ConfigMap containing customized Grafana dashboard JSON
+    ├── monitoring/                 # Custom Grafana dashboards and alert rules
+    │   └── custom-dashboard-cluster.yaml # ConfigMap containing customized Grafana dashboard JSON
+    ├── cert-manager/               # Kubernetes cert-manager cluster-level resources
+    │   └── cluster-issuer.yaml     # Self-signed and CA cluster issuers, root CA certificate
+    └── immich/                     # Custom Immich infrastructure resources
+        └── library-pvc.yaml        # 500Gi local-path PVC for Immich library storage
 ```
 
 ---
@@ -189,5 +195,5 @@ The following primary web services are deployed and managed under GitOps:
 * **URL:** [https://photos.homelab.com](https://photos.homelab.com)
 * **Configuration:** Manifest declared in `apps/immich.yaml`.
 * **Database Backend:** Implemented with `postgresql` using `tensorchord/pgvecto-rs` for vector-enabled AI search. Managed cleanly via a custom `immich` superuser credential.
-* **Storage Engine:** High-capacity 500Gi Persistent Volume (`immich-library-pvc`) dynamic local-path mount.
+* **Storage Engine:** High-capacity 500Gi Persistent Volume Claim (`immich-library-pvc`) dynamic local-path mount, declared in `infrastructure/immich/library-pvc.yaml` and deployed via the `immich-resources` Argo CD application.
 * **Resiliency Engineering:** Configured with an optimized `probes.startup` grace period of **20 minutes** (120 attempts × 10s) to permit seamless, uninterrupted geodata map indexing and database migrations on startup.
