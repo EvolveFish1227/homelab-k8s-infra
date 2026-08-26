@@ -24,7 +24,7 @@ spec:
             enabled: true
             ingressClassName: "traefik-ingress"
             annotations:
-              cert-manager.io/cluster-issuer: "selfsigned-issuer"
+              cert-manager.io/cluster-issuer: "homelab-ca-issuer"
               traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
               traefik.ingress.kubernetes.io/router.tls: "true"
             hosts:
