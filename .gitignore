@@ -1,0 +1,7 @@
+# Certificates & Keys
+*.crt
+*.key
+*.pem
+
+# OS generated files
+.DS_Store
