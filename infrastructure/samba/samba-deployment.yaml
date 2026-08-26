@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: samba
+  namespace: samba
+  labels:
+    app: samba
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samba
+  strategy:
+    type: Recreate # Required to prevent multiple pods from mounting hostPath at the same time during rollouts
+  template:
+    metadata:
+      labels:
+        app: samba
+    spec:
+      containers:
+        - name: samba
+          image: crazymax/samba:latest
+          env:
+            - name: TZ
+              value: UTC
+            - name: SAMBA_LOG_LEVEL
+              value: "1"
+            - name: SAMBA_WORKGROUP
+              value: "WORKGROUP"
+            - name: SAMBA_SERVER_STRING
+              value: "Homelab Samba Gateway"
+            # Service discovery
+            - name: WSDD2_ENABLE
+              value: "1"
+            - name: AVAHI_ENABLE
+              value: "0" # Disable internal avahi since host network mode isn't used
+            - name: SAMBA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: samba-secret
+                  key: SAMBA_PASSWORD
+          ports:
+            - name: smb
+              containerPort: 445
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /data
+            - name: storage
+              mountPath: /samba/storage
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            runAsUser: 0 # Samba daemon needs root within the container to bind port 445 and perform user/group mapping
+            capabilities:
+              add:
+                - CAP_CHOWN
+                - CAP_FOWNER
+                - CAP_SETGID
+                - CAP_SETUID
+      volumes:
+        - name: config
+          configMap:
+            name: samba-config
+        - name: storage
+          hostPath:
+            path: /mnt/storage
+            type: Directory

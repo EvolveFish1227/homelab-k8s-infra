@@ -76,7 +76,8 @@ homelab-k8s-infra/
 │   ├── monitoring.yaml             # Prometheus & Grafana monitoring stack app
 │   ├── monitoring-resources.yaml   # Custom Grafana dashboards & alerts app
 │   ├── immich.yaml                 # Immich photo suite, DB, Redis, ML & Ingress
-│   └── immich-resources.yaml       # Immich persistent volume claim app
+│   ├── immich-resources.yaml       # Immich persistent volume claim app
+│   └── samba.yaml                  # Samba SMB/CIFS LAN file sharing app
 └── infrastructure/                 # Manifests, Helm values & storage specs
     ├── storage/                    # Kubernetes storage engine configurations
     │   ├── local-path-config.yaml  # ConfigMap containing host paths & helper pod specs
@@ -85,8 +86,13 @@ homelab-k8s-infra/
     │   └── custom-dashboard-cluster.yaml # ConfigMap containing customized Grafana dashboard JSON
     ├── cert-manager/               # Kubernetes cert-manager cluster-level resources
     │   └── cluster-issuer.yaml     # Self-signed and CA cluster issuers, root CA certificate
-    └── immich/                     # Custom Immich infrastructure resources
-        └── library-pvc.yaml        # 500Gi local-path PVC for Immich library storage
+    ├── immich/                     # Custom Immich infrastructure resources
+    │   └── library-pvc.yaml        # 500Gi local-path PVC for Immich library storage
+    └── samba/                      # Custom Samba server infrastructure resources
+        ├── samba-secret.yaml       # Encrypted credentials for SMB shares
+        ├── samba-configmap.yaml    # Shares definition and auth mapping config
+        ├── samba-deployment.yaml   # Container specification mounting /mnt/storage
+        └── samba-service.yaml      # LoadBalancer service exposing port 445
 ```
 
 ---
@@ -197,3 +203,12 @@ The following primary web services are deployed and managed under GitOps:
 * **Database Backend:** Implemented with `postgresql` using `tensorchord/pgvecto-rs` for vector-enabled AI search. Managed cleanly via a custom `immich` superuser credential.
 * **Storage Engine:** High-capacity 500Gi Persistent Volume Claim (`immich-library-pvc`) dynamic local-path mount, declared in `infrastructure/immich/library-pvc.yaml` and deployed via the `immich-resources` Argo CD application.
 * **Resiliency Engineering:** Configured with an optimized `probes.startup` grace period of **20 minutes** (120 attempts × 10s) to permit seamless, uninterrupted geodata map indexing and database migrations on startup.
+
+### 📁 Samba (SMB/CIFS LAN File-Sharing Gateway)
+* **Configuration:** Manifest declared in `apps/samba.yaml` pointing to `infrastructure/samba/`.
+* **Exposed Port:** `445` (mapped to your host LAN IP via K3s LoadBalancer Service).
+* **Protocol Details:** High-performance, lightweight SMB daemon based on `crazymax/samba`. Fully supports Windows Service Discovery (WSDD2) to seamlessly populate in your local network browsers.
+* **Access Credentials:** 
+  - **Username:** `homelab`
+  - **Password:** Stored securely within the `samba-secret` Kubernetes Secret (Default: `HomelabStoragePassword123`).
+* **Storage Mounting:** Maps the physical storage pool `/mnt/storage` from the host directly into the container filesystem at `/samba/storage`. Provides local bare-metal disk read/write speeds for your LAN clients (PCs, Macs, Smart TVs).

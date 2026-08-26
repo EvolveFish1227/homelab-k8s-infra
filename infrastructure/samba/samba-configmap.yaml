@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: samba-config
+  namespace: samba
+data:
+  config.yml: |
+    auth:
+      - user: homelab
+        group: users
+        uid: 1000
+        gid: 1000
+        password: "${SAMBA_PASSWORD}"
+
+    global:
+      - "force user = homelab"
+      - "force group = users"
+
+    share:
+      - name: storage
+        path: /samba/storage
+        browsable: yes
+        readonly: no
+        guestok: no
+        validusers: homelab
+        writelist: homelab
