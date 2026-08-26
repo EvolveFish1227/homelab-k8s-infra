@@ -17,6 +17,8 @@ spec:
       labels:
         app: samba
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: samba
           image: crazymax/samba:latest
