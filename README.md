@@ -1,7 +1,7 @@
 # homelab-k8s-infra
 This repository drives declarative cluster state synchronization, automated deployments, secret encapsulation, and observability stack provisioning without manual kubectl intervention.
 
-# HomeLab Infrastructure & Storage Engine (NFS/SMB & GitOps)
+# HomeLab Infrastructure & Storage Engine (Samba/SMB & GitOps)
 
 A bare-metal Kubernetes cluster running on home hardware, engineered as a centralized **Home Storage Server & Media Engine**. This repository serves as the single declarative source of truth for all infrastructure, storage configurations, and network shares, managed end-to-end via **GitOps (Argo CD)**.
 
@@ -9,7 +9,7 @@ A bare-metal Kubernetes cluster running on home hardware, engineered as a centra
 
 ## 🏗️ Architecture Overview
 
-This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance Network File System (NFS), SMB/CIFS storage cluster, and self-hosted photo/media platform.
+This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps practices to transform bare-metal home hardware into a reliable, high-performance local storage pool, shared via SMB/CIFS to your home network, and running a self-hosted photo/media platform.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -29,9 +29,9 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 │         │                         │                         │          │
 │         ▼                         ▼                         ▼          │
 │  ┌──────────────┐         ┌──────────────┐         ┌──────────────┐    │
-│  │  Networking  │         │ Dynamic NFS  │         │ Home Media & │    │
-│  │  (Traefik /  │         │ Provisioner  │         │ Photo Hub    │    │
-│  │ cert-manager)│         │ (RWX Mode)   │         │ (SMB/Immich) │    │
+│  │  Networking  │         │Local Dynamic │         │ Home Media & │    │
+│  │  (Traefik /  │         │   Storage    │         │ Photo Hub    │    │
+│  │ cert-manager)│         │ (local-path) │         │ (SMB/Immich) │    │
 │  └──────────────┘         └──────────────┘         └──────────────┘    │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
@@ -40,7 +40,7 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
           ┌─────────────────────────┼─────────────────────────┐
           ▼                         ▼                         ▼
           📺 Smart TVs              💻 Laptops / PCs          📱 Mobile Devices
-          (Plex/Jellyfin)            (NFS/SMB Shares)          (Immich Auto-Sync)
+          (Plex/Jellyfin)            (Samba/SMB Shares)        (Immich Auto-Sync)
 ```
 
 ---
@@ -54,7 +54,7 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 - **Observability:** Prometheus Operator (`kube-prometheus-stack`) + Custom Grafana Dashboards
 - **Storage Subsystems:**
   - **Local Dynamic Engine:** Rancher `local-path-provisioner` mapped to host storage pools (`/mnt/storage`)
-  - **Network Shares:** NFS Subdir External Provisioner (`ReadWriteMany` / RWX volume support)
+  - **LAN Gateways:** In-cluster Samba (SMB) / NFS server gateways to share host pools outward to home devices
 - **Network Protocols:** SMB/CIFS (`Port 445`), NFS (`Port 2049`), and HTTPS (`Port 443`)
 
 ---
@@ -93,10 +93,10 @@ homelab-k8s-infra/
 
 ## 💾 Storage Architecture & Design Decisions
 
-### 1. Multi-Read / Multi-Write (`ReadWriteMany`) Access Mode
-Standard Kubernetes persistent volumes default to `ReadWriteOnce` (RWO), locking storage access to a single node or pod at a time. 
-* **Design Choice:** Implemented an **NFS Subdir External Provisioner** to supply `ReadWriteMany` (RWX) volumes across the cluster.
-* **Engineering Impact:** Enables concurrent file access for decoupled workloads—allowing media ingest services, torrent engines, and streaming platforms (Plex/Jellyfin) to attach and write to the same storage paths simultaneously without file-lock deadlocks.
+### 1. High-Performance Host-Path Storage (`local-path-provisioner`)
+Standard cloud-based Kubernetes relies on network-attached block storage (like AWS EBS), which introduces network latency and limits I/O.
+* **Design Choice:** Utilized Rancher's **local-path-provisioner** mapped directly to the bare-metal host's physical storage pools (e.g., `/mnt/storage`).
+* **Engineering Impact:** Provides native SSD/HDD performance with zero network-hop latency. Since all data resides directly on the host, filesystem operations (like SQLite queries in Immich or large photo asset transfers) execute at local hardware speeds.
 
 ### 2. Dual-Layer Storage Interfaces (In-Cluster vs. LAN Gateways)
 To unify Kubernetes persistent storage with standard home network file sharing:
