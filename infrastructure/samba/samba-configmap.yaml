@@ -10,7 +10,7 @@ data:
         group: users
         uid: 1000
         gid: 1000
-        password: "${SAMBA_PASSWORD}"
+        password: "${HomelabStoragePassword123}"
 
     global:
       - "force user = homelab"
