@@ -6,7 +6,7 @@ metadata:
   labels:
     app: samba
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     - name: smb
       port: 445
