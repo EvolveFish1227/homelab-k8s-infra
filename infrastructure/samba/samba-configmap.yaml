@@ -13,13 +13,12 @@ data:
         password: "HomelabStoragePassword123"
 
     global:
-      - "server min protocol = SMB2"
-      - "server max protocol = SMB3"
+      - "server min protocol = SMB2_10"
+      - "server max protocol = SMB3_11"
       - "ntlm auth = yes"
+      - "client min protocol = SMB2_10"
       - "server signing = auto"
-      - "smb encrypt = off"
       - "vfs objects = acl_xattr"
-      - "map to guest = Bad User"
 
     share:
       - name: storage

@@ -26,14 +26,18 @@ spec:
             - sh
             - -c
             - |
-              mkdir -p /data/lib /data/cache /data/run /data/private /data/private/msg.sock /var/run/samba
-              chmod -R 755 /data /var/run/samba
-              chmod -R 700 /data/private
+              mkdir -p /var/lib/samba/private /var/cache/samba /var/run/samba /data/private
+              chmod -R 755 /var/lib/samba /var/cache/samba /var/run/samba /data
+              chmod 700 /var/lib/samba/private
           volumeMounts:
-            - name: data-dir
-              mountPath: /data
+            - name: samba-var-lib
+              mountPath: /var/lib/samba
+            - name: samba-var-cache
+              mountPath: /var/cache/samba
             - name: samba-var-run
               mountPath: /var/run/samba
+            - name: data-dir
+              mountPath: /data
       containers:
         - name: samba
           image: crazymax/samba:latest
@@ -62,6 +66,10 @@ spec:
               subPath: config.yml
             - name: storage
               mountPath: /samba/storage
+            - name: samba-var-lib
+              mountPath: /var/lib/samba
+            - name: samba-var-cache
+              mountPath: /var/cache/samba
             - name: samba-var-run
               mountPath: /var/run/samba
           resources:
@@ -89,5 +97,50 @@ spec:
           hostPath:
             path: /mnt/storage
             type: Directory
+        - name: samba-var-lib
+          emptyDir: {}
+        - name: samba-var-cache
+          emptyDir: {}
         - name: samba-var-run
           emptyDir: {}
+```[cite: 3]
+
+---
+
+### Step 2: Ensure `samba-configmap.yaml` is Clean
+
+Ensure `samba-configmap.yaml` has the verified working configuration:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: samba-config
+  namespace: samba
+data:
+  config.yml: |
+    auth:
+      - user: homelab
+        group: users
+        uid: 1000
+        gid: 1000
+        password: "HomelabStoragePassword123"
+
+    global:
+      - "server min protocol = SMB2_10"
+      - "server max protocol = SMB3_11"
+      - "ntlm auth = yes"
+      - "client min protocol = SMB2_10"
+      - "server signing = auto"
+      - "vfs objects = acl_xattr"
+
+    share:
+      - name: storage
+        path: /samba/storage
+        browsable: yes
+        readonly: no
+        guestok: no
+        validusers: homelab
+        writelist: homelab
+        forceuser: homelab
+        forcegroup: users
