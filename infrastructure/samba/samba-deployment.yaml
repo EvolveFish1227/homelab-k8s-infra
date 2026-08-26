@@ -40,15 +40,13 @@ spec:
               containerPort: 445
               protocol: TCP
           volumeMounts:
+            - name: data-dir
+              mountPath: /data
             - name: config
               mountPath: /data/config.yml
               subPath: config.yml
             - name: storage
               mountPath: /samba/storage
-            - name: samba-var-lib
-              mountPath: /var/lib/samba
-            - name: samba-var-cache
-              mountPath: /var/cache/samba
           resources:
             requests:
               cpu: "100m"
@@ -65,6 +63,8 @@ spec:
                 - CAP_SETGID
                 - CAP_SETUID
       volumes:
+        - name: data-dir
+          emptyDir: {}
         - name: config
           configMap:
             name: samba-config
@@ -72,7 +72,3 @@ spec:
           hostPath:
             path: /mnt/storage
             type: Directory
-        - name: samba-var-lib
-          emptyDir: {}
-        - name: samba-var-cache
-          emptyDir: {}
