@@ -11,7 +11,7 @@ spec:
     matchLabels:
       app: samba
   strategy:
-    type: Recreate # Required to prevent multiple pods from mounting hostPath at the same time during rollouts
+    type: Recreate
   template:
     metadata:
       labels:
@@ -31,25 +31,24 @@ spec:
               value: "WORKGROUP"
             - name: SAMBA_SERVER_STRING
               value: "Homelab Samba Gateway"
-            # Service discovery
             - name: WSDD2_ENABLE
               value: "1"
             - name: AVAHI_ENABLE
-              value: "0" # Disable internal avahi since host network mode isn't used
-            - name: SAMBA_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: samba-secret
-                  key: SAMBA_PASSWORD
+              value: "0"
           ports:
             - name: smb
               containerPort: 445
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /data
+              mountPath: /data/config.yml
+              subPath: config.yml
             - name: storage
               mountPath: /samba/storage
+            - name: samba-var-lib
+              mountPath: /var/lib/samba
+            - name: samba-var-cache
+              mountPath: /var/cache/samba
           resources:
             requests:
               cpu: "100m"
@@ -58,7 +57,7 @@ spec:
               cpu: "500m"
               memory: "512Mi"
           securityContext:
-            runAsUser: 0 # Samba daemon needs root within the container to bind port 445 and perform user/group mapping
+            runAsUser: 0
             capabilities:
               add:
                 - CAP_CHOWN
@@ -73,3 +72,7 @@ spec:
           hostPath:
             path: /mnt/storage
             type: Directory
+        - name: samba-var-lib
+          emptyDir: {}
+        - name: samba-var-cache
+          emptyDir: {}
