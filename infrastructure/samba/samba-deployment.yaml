@@ -19,25 +19,6 @@ spec:
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
-      initContainers:
-        - name: init-samba-dirs
-          image: busybox:latest
-          command:
-            - sh
-            - -c
-            - |
-              mkdir -p /var/lib/samba/private /var/cache/samba /var/run/samba /data/private
-              chmod -R 755 /var/lib/samba /var/cache/samba /var/run/samba /data
-              chmod 700 /var/lib/samba/private
-          volumeMounts:
-            - name: samba-var-lib
-              mountPath: /var/lib/samba
-            - name: samba-var-cache
-              mountPath: /var/cache/samba
-            - name: samba-var-run
-              mountPath: /var/run/samba
-            - name: data-dir
-              mountPath: /data
       containers:
         - name: samba
           image: crazymax/samba:latest
@@ -66,12 +47,6 @@ spec:
               subPath: config.yml
             - name: storage
               mountPath: /samba/storage
-            - name: samba-var-lib
-              mountPath: /var/lib/samba
-            - name: samba-var-cache
-              mountPath: /var/cache/samba
-            - name: samba-var-run
-              mountPath: /var/run/samba
           resources:
             requests:
               cpu: "100m"
@@ -97,9 +72,3 @@ spec:
           hostPath:
             path: /mnt/storage
             type: Directory
-        - name: samba-var-lib
-          emptyDir: {}
-        - name: samba-var-cache
-          emptyDir: {}
-        - name: samba-var-run
-          emptyDir: {}
