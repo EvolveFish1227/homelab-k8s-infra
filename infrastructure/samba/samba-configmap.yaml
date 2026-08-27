@@ -19,10 +19,6 @@ data:
       - "client min protocol = SMB2_10"
       - "server signing = auto"
       - "vfs objects = acl_xattr"
-      - "private dir = /data/private"
-      - "state directory = /data/lib"
-      - "cache directory = /data/cache"
-      - "lock directory = /data/cache"
 
     share:
       - name: storage
