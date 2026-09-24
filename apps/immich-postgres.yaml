@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-postgresql
+  namespace: immich
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immich-postgresql
+  template:
+    metadata:
+      labels:
+        app: immich-postgresql
+    spec:
+      containers:
+        - name: postgres
+          image: ghcr.io/immich-app/postgres:18-vectorchord1.1.1
+          env:
+            - name: POSTGRES_USER
+              value: "immich"
+            - name: POSTGRES_PASSWORD
+              value: "ImmichSuperSecretDBPassword123"
+            - name: POSTGRES_DB
+              value: "immich"
+            - name: IGNORE_DATABASE_FSTYPE
+              value: "true"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: pg-data
+          persistentVolumeClaim:
+            claimName: immich-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immich-postgresql
+  namespace: immich
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: immich-postgresql
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-postgres-pvc
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi

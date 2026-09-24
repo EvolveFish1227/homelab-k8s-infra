@@ -28,39 +28,6 @@ spec:
             library:
               existingClaim: immich-library-pvc
 
-        postgresql:
-          enabled: true
-          image:
-            registry: ghcr.io
-            repository: immich-app/postgres
-            tag: 18-vectorchord1.1.1
-          auth:
-            username: immich
-            password: "ImmichSuperSecretDBPassword123"
-            postgresPassword: "ImmichSuperSecretDBPassword123"
-            database: immich
-          primary:
-            extraEnvVars:
-              - name: IGNORE_DATABASE_FSTYPE
-                value: "true"
-            livenessProbe:
-              enabled: false
-            readinessProbe:
-              enabled: true
-              initialDelaySeconds: 30
-              periodSeconds: 10
-            resources:
-              limits:
-                cpu: "2"
-                memory: "4Gi"
-              requests:
-                cpu: "1000m"
-                memory: "2Gi"
-            persistence:
-              enabled: true
-              size: 20Gi
-              storageClass: local-path
-
         valkey:
           enabled: true
           architecture: standalone
