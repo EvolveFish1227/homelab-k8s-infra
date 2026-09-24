@@ -37,7 +37,7 @@ spec:
               memory: "4Gi"
           volumeMounts:
             - name: pg-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
       volumes:
         - name: pg-data
           persistentVolumeClaim:
