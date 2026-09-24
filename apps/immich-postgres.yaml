@@ -3,8 +3,12 @@ kind: Deployment
 metadata:
   name: immich-postgresql
   namespace: immich
+  labels:
+    app: immich-postgresql
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: immich-postgresql
@@ -13,28 +17,67 @@ spec:
       labels:
         app: immich-postgresql
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
         - name: postgres
           image: ghcr.io/immich-app/postgres:18-vectorchord1.1.1
+          imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_USER
               value: "immich"
-            - name: POSTGRES_PASSWORD
-              value: "ImmichSuperSecretDBPassword123"
             - name: POSTGRES_DB
               value: "immich"
-            - name: IGNORE_DATABASE_FSTYPE
-              value: "true"
+            - name: POSTGRES_PASSWORD
+              value: "ImmichSuperSecretDBPassword123"
+            - name: PGDATA
+              value: "/var/lib/postgresql/18/docker"
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
           ports:
-            - containerPort: 5432
-              name: postgres
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - immich
+                - -d
+                - immich
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - immich
+                - -d
+                - immich
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - immich
+                - -d
+                - immich
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests:
               cpu: "1000m"
-              memory: "2Gi"
+              memory: 2Gi
             limits:
               cpu: "2"
-              memory: "4Gi"
+              memory: 4Gi
           volumeMounts:
             - name: pg-data
               mountPath: /var/lib/postgresql
@@ -45,25 +88,37 @@ spec:
 ---
 apiVersion: v1
 kind: Service
+
 metadata:
   name: immich-postgresql
   namespace: immich
+
 spec:
-  ports:
-    - port: 5432
-      targetPort: 5432
+  type: ClusterIP
+
   selector:
     app: immich-postgresql
+
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
+
 metadata:
   name: immich-postgres-pvc
   namespace: immich
+
 spec:
   accessModes:
     - ReadWriteOnce
+
   storageClassName: local-path
+
   resources:
     requests:
       storage: 20Gi
