@@ -8,20 +8,20 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://immich-app.github.io/immich-charts'
+    repoURL: 'oci://ghcr.io/immich-app/immich-charts'
     chart: immich
-    targetRevision: "0.8.4"
+    targetRevision: "0.13.2"
     helm:
       values: |
         image:
-          tag: v3.1.0
+          tag: v3.2.0
 
         env:
           DB_HOSTNAME: 'immich-postgresql'
           DB_DATABASE_NAME: 'immich'
           DB_USERNAME: 'immich'
           DB_PASSWORD: 'ImmichSuperSecretDBPassword123'
-          REDIS_HOSTNAME: 'immich-redis-master'
+          REDIS_HOSTNAME: 'immich-valkey-master'
 
         immich:
           persistence:
@@ -61,14 +61,15 @@ spec:
               size: 20Gi
               storageClass: local-path
 
-        redis:
+        valkey:
           enabled: true
           architecture: standalone
           auth:
             enabled: true
           image:
-            repository: bitnamilegacy/redis
-            tag: 7.2.5-debian-12-r0
+            registry: docker.io
+            repository: bitnami/valkey
+            tag: 8.0.1-debian-12-r0
 
         machine-learning:
           enabled: true
