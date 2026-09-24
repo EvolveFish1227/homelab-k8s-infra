@@ -6,7 +6,7 @@ metadata:
   labels:
     app: immich-postgresql
 spec:
-  replicas: 0
+  replicas: 1
   strategy:
     type: Recreate
   selector:
@@ -33,8 +33,6 @@ spec:
               value: "/var/lib/postgresql/18/docker"
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
-            - name: IGNORE_DATABASE_FSTYPE
-              value: "true"
           ports:
             - name: postgres
               containerPort: 5432
@@ -86,7 +84,7 @@ spec:
       volumes:
         - name: pg-data
           persistentVolumeClaim:
-            claimName: immich-postgres-pvc
+            claimName: immich-postgres-direct-pvc
 ---
 apiVersion: v1
 kind: Service
