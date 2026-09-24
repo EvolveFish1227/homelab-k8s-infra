@@ -33,6 +33,8 @@ spec:
               value: "/var/lib/postgresql/18/docker"
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
+            - name: IGNORE_DATABASE_FSTYPE
+              value: "true"
           ports:
             - name: postgres
               containerPort: 5432
