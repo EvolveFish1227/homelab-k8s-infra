@@ -83,7 +83,8 @@ spec:
           persistence:
             cache:
               enabled: true
-              type: pvc
+              type: persistentVolumeClaim
+              accessMode: ReadWriteOnce
               size: 10Gi
               storageClass: local-path
 
@@ -98,8 +99,9 @@ spec:
           ingress:
             main:
               enabled: true
-              ingressClassName: traefik-ingress
+              # ingressClassName: traefik-ingress
               annotations:
+                kubernetes.io/ingress.class: traefik-ingress
                 cert-manager.io/cluster-issuer: homelab-ca-issuer
                 traefik.ingress.kubernetes.io/router.entrypoints: websecure
                 traefik.ingress.kubernetes.io/router.tls: "true"
