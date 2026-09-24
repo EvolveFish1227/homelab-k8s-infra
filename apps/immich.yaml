@@ -17,6 +17,7 @@ spec:
           tag: v3.2.0
 
         immich:
+          externalConfig: true
           configuration:
             env:
               DB_HOSTNAME: 'immich-postgresql'
