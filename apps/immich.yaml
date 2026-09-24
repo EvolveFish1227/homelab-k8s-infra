@@ -46,14 +46,16 @@ spec:
             livenessProbe:
               enabled: false
             readinessProbe:
-              enabled: false
+              enabled: true
+              initialDelaySeconds: 30
+              periodSeconds: 10
             resources:
               limits:
-                cpu: "1"
-                memory: "2Gi"
+                cpu: "2"
+                memory: "4Gi"
               requests:
-                cpu: "500m"
-                memory: "1Gi"
+                cpu: "1000m"
+                memory: "2Gi"
             persistence:
               enabled: true
               size: 20Gi
@@ -63,13 +65,20 @@ spec:
           enabled: true
           architecture: standalone
           auth:
-            enabled: false
+            enabled: true
           image:
             repository: bitnamilegacy/redis
             tag: 7.2.5-debian-12-r0
 
         machine-learning:
           enabled: true
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
           persistence:
             cache:
               enabled: true
