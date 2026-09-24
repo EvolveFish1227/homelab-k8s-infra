@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'oci://ghcr.io/immich-app/immich-charts/immich'
-    path: .
+    repoURL: 'ghcr.io/immich-app/immich-charts'
+    chart: immich
     targetRevision: "0.13.2"
     helm:
       values: |
