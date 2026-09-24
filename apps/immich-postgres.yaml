@@ -112,6 +112,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: immich-postgres-pvc
   namespace: immich
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 
 spec:
   accessModes:
