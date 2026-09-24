@@ -83,7 +83,7 @@ spec:
           persistence:
             cache:
               enabled: true
-	      type: pvc
+              type: pvc
               size: 10Gi
               storageClass: local-path
 
