@@ -27,6 +27,9 @@ jobs:
       - name: Check PostgreSQL backup script syntax
         run: bash -n scripts/backup_immich_postgres.sh
 
+      - name: Check Prometheus preflight script syntax
+        run: bash -n scripts/prometheus_storage_preflight.sh
+
       - name: Check CA backup utility syntax and command-line interface
         run: |
           python -m py_compile scripts/backup_homelab_ca.py

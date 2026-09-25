@@ -127,6 +127,8 @@ See the [disaster recovery runbook](docs/disaster-recovery.md) for the offline C
 
 For online PostgreSQL backups to the existing HDD, see [Immich database backups](docs/immich-postgres-backup.md). This does not replace independent media backups.
 
+Before moving Prometheus to NVMe, run the [read-only monitoring storage preflight](docs/prometheus-storage-migration.md).
+
 The Immich library and PostgreSQL database are separate data stores; back up both before migration, PVC removal, or cluster teardown. PostgreSQL runs directly on the NVMe ext4 filesystem at `/srv/immich-postgres`, while media remains on `immich-library-pvc` in the storage pool. Keep an independent copy of database dumps and media outside the same underlying disk.
 
 The statically provisioned PostgreSQL PV uses `Retain`. The library uses a dynamically provisioned PV: verify the *existing PV's* reclaim policy independently, since changing a StorageClass does not retroactively change an existing volume. The library PVC uses Argo CD `Prune=false,Delete=false` for GitOps deletion protection; this is not a substitute for a backup. The legacy PostgreSQL PVC is retained for rollback but is not a current backup once new database writes occur.
