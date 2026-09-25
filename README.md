@@ -95,8 +95,7 @@ homelab-k8s-infra/
     ├── immich/                     # Custom Immich infrastructure resources
     │   └── library-pvc.yaml        # 500Gi local-path PVC for Immich library storage
     └── samba/                      # Custom Samba server infrastructure resources
-        ├── samba-secret.yaml       # Encrypted credentials for SMB shares
-        ├── samba-configmap.yaml    # Shares definition and auth mapping config
+        ├── samba-config.yml.example # Non-secret config template (not deployed by Argo CD)
         ├── samba-deployment.yaml   # Container specification mounting /mnt/storage
         └── samba-service.yaml      # ClusterIP service for port 445
 ```
@@ -230,5 +229,5 @@ The following primary web services are deployed and managed under GitOps:
 * **Protocol Details:** High-performance, lightweight SMB daemon based on `crazymax/samba`. Fully supports Windows Service Discovery (WSDD2) to seamlessly populate in your local network browsers.
 * **Access Credentials:** 
   - **Username:** `homelab`
-  - **Password:** Stored securely within the `samba-secret` Kubernetes Secret (Default: `HomelabStoragePassword123`).
+  - **Password:** Supplied through the cluster-local `samba-runtime-config` Kubernetes Secret; no credentials are committed to Git.
 * **Storage Mounting:** Maps the physical storage pool `/mnt/storage` from the host directly into the container filesystem at `/samba/storage`. Provides local bare-metal disk read/write speeds for your LAN clients (PCs, Macs, Smart TVs).
