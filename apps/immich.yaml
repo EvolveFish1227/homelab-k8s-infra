@@ -66,7 +66,11 @@ spec:
                     DB_PORT: "5432"
                     DB_DATABASE_NAME: immich
                     DB_USERNAME: immich
-                    DB_PASSWORD: 'ImmichSuperSecretDBPassword123'
+                    DB_PASSWORD:
+                      valueFrom:
+                        secretKeyRef:
+                          name: immich-db-credentials
+                          key: password
                   probes:
                     startup:
                       enabled: true

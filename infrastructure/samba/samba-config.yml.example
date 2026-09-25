@@ -1,0 +1,27 @@
+# Template only; Argo CD does not render or deploy this .example file.
+# The live config.yml is stored in the cluster-local samba-runtime-config Secret.
+auth:
+  - user: homelab
+    group: users
+    uid: 1000
+    gid: 1000
+    password: __SAMBA_PASSWORD_JSON__
+
+global:
+  - "server min protocol = SMB2_10"
+  - "server max protocol = SMB3_11"
+  - "ntlm auth = yes"
+  - "client min protocol = SMB2_10"
+  - "server signing = auto"
+  - "vfs objects = acl_xattr"
+
+share:
+  - name: storage
+    path: /samba/storage
+    browsable: yes
+    readonly: no
+    guestok: no
+    validusers: homelab
+    writelist: homelab
+    forceuser: homelab
+    forcegroup: users

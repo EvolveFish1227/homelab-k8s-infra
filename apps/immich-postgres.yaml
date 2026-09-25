@@ -28,7 +28,10 @@ spec:
             - name: POSTGRES_DB
               value: "immich"
             - name: POSTGRES_PASSWORD
-              value: "ImmichSuperSecretDBPassword123"
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db-credentials
+                  key: password
             - name: PGDATA
               value: "/var/lib/postgresql/18/docker"
             - name: POSTGRES_INITDB_ARGS

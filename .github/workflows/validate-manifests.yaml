@@ -35,6 +35,11 @@ jobs:
           python -m py_compile scripts/backup_homelab_ca.py
           python scripts/backup_homelab_ca.py --help > /dev/null
 
+      - name: Enforce runtime credential references
+
+        run: python scripts/check_runtime_secrets.py
+
+
       - name: Validate manifests and extract chart values
         run: python scripts/validate_manifests.py
 
