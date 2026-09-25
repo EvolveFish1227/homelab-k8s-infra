@@ -49,6 +49,7 @@ Prepare a **new empty** directory on the NVMe (do not put this under `/mnt/stora
 
 ```bash
 test "$(findmnt -n -T /srv -o FSTYPE)" = ext4 || { echo "Destination not ext4"; exit 1; }
+test ! -e /srv/prometheus || { echo "Destination already exists; inspect before proceeding"; exit 1; }
 sudo install -d -m 0750 /srv/prometheus
 ```
 
