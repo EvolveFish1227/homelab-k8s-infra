@@ -36,7 +36,7 @@ test "$(kubectl get pv "$OLD_PV" -o jsonpath='{.spec.persistentVolumeReclaimPoli
 test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.status.phase}')" = Available || { echo "New PV not Available; STOP"; exit 1; }
 test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.spec.local.path}')" = "$DST" || { echo "New PV path changed; STOP"; exit 1; }
 test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.spec.persistentVolumeReclaimPolicy}')" = Retain || { echo "New PV not Retain; STOP"; exit 1; }
-test "$(kubectl get node homeserver -o jsonpath='{.metadata.labels.kubernetes\\.io/hostname}')" = homeserver || { echo "Node label mismatch; STOP"; exit 1; }
+test "$(kubectl get node homeserver -o jsonpath='{.metadata.labels.kubernetes\.io/hostname}')" = homeserver || { echo "Node label mismatch; STOP"; exit 1; }
 test "$(findmnt -n -M /mnt/disk1 -o FSTYPE)" = ext4 || { echo "HDD not mounted as ext4; STOP"; exit 1; }
 test "$(findmnt -n -T /srv -o FSTYPE)" = ext4 || { echo "NVMe target not ext4; STOP"; exit 1; }
 sudo test -d "$SRC" || { echo "Original TSDB missing; STOP"; exit 1; }
@@ -63,9 +63,9 @@ kubectl -n argocd patch application kube-prometheus-stack --type=json \
   -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
 
 kubectl -n argocd get application root-application \
-  -o jsonpath='{.spec.syncPolicy.automated}{"\\n"}'
+  -o jsonpath='{.spec.syncPolicy.automated}{"\n"}'
 kubectl -n argocd get application kube-prometheus-stack \
-  -o jsonpath='{.spec.syncPolicy.automated}{"\\n"}'
+  -o jsonpath='{.spec.syncPolicy.automated}{"\n"}'
 ```
 
 Both final commands must print an empty line. If either is still automated, STOP. Do not manually sync either Application during downtime. These commands do not edit Git; they temporarily suspend automatic sync until restored below.
@@ -122,6 +122,7 @@ The old PV should be `Released`, with `Retain` reclaim policy. If the PV disappe
 The root and child Argo CD Applications must still have automated sync disabled. Merge this PR, then pull the updated repository on HomeServer:
 
 ```bash
+git switch main
 git pull --ff-only
 kubectl apply -f apps/prometheus-direct-pvc.yaml
 kubectl -n monitoring get pvc "$OLD_PVC" -o wide
@@ -140,7 +141,7 @@ kubectl -n monitoring patch prometheus kube-prometheus-stack-prometheus \
   -p '{"spec":{"storage":{"volumeClaimTemplate":{"spec":{"storageClassName":"prometheus-direct","resources":{"requests":{"storage":"20Gi"}}}}}}}'
 
 kubectl -n monitoring get prometheus kube-prometheus-stack-prometheus \
-  -o jsonpath='{.spec.storage.volumeClaimTemplate.spec.storageClassName}{" "}{.spec.storage.volumeClaimTemplate.spec.resources.requests.storage}{" "}{.spec.paused}{"\\n"}'
+  -o jsonpath='{.spec.storage.volumeClaimTemplate.spec.storageClassName}{" "}{.spec.storage.volumeClaimTemplate.spec.resources.requests.storage}{" "}{.spec.paused}{"\n"}'
 ```
 
 Expected: `prometheus-direct 20Gi true`. Only then:
@@ -151,7 +152,7 @@ kubectl -n monitoring patch prometheus kube-prometheus-stack-prometheus \
 kubectl -n monitoring rollout status statefulset/prometheus-kube-prometheus-stack-prometheus --timeout=10m
 kubectl -n monitoring get pvc "$OLD_PVC" -o wide
 kubectl -n monitoring get statefulset prometheus-kube-prometheus-stack-prometheus \
-  -o jsonpath='{.spec.volumeClaimTemplates[0].spec.storageClassName}{" "}{.spec.volumeClaimTemplates[0].spec.resources.requests.storage}{"\\n"}'
+  -o jsonpath='{.spec.volumeClaimTemplates[0].spec.storageClassName}{" "}{.spec.volumeClaimTemplates[0].spec.resources.requests.storage}{"\n"}'
 ```
 
 Expected: one healthy Prometheus replica, replacement PVC bound to `prometheus-direct-pv`, and StatefulSet claim template `prometheus-direct 20Gi`. Check Grafana Prometheus data source and query some historical metrics from before the copy. Do not reenable GitOps until the TSDB and claim mapping have been validated.
