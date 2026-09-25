@@ -38,12 +38,12 @@ spec:
             storageSpec:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: "local-path"
+                  storageClassName: "prometheus-direct"
                   accessModes:
                     - ReadWriteOnce
                   resources:
                     requests:
-                      storage: 10Gi
+                      storage: 20Gi
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
