@@ -64,11 +64,13 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 ```text
 homelab-k8s-infra/
 ├── README.md                       # System documentation & architectural guide
+├── .github/workflows/validate-manifests.yaml # GitHub Actions validation
+├── scripts/validate_manifests.py   # YAML and nested Helm values validation
 ├── bootstrap/                      # One-time cluster setup (Manual initialization)
 │   └── root-app.yaml               # App-of-Apps master entrypoint
 ├── apps/                           # Argo CD Application manifests
-│   ├── argocd/                     # Argo CD ingress & service bindings
-│   │   └── ingress.yaml            # Ingress rules for argocd.homelab.com
+│   ├── argocd-ingress.yaml         # Ingress rules for argocd.homelab.com
+│   ├── argocd-ghcr-registry-secret.yaml # Public GHCR Helm registry configuration
 │   ├── traefik.yaml                # Traefik v3 Ingress controller configuration
 │   ├── cert-manager.yaml           # cert-manager Helm chart deployment app
 │   ├── cert-manager-resources.yaml # cert-manager cluster issuers and certificates app
