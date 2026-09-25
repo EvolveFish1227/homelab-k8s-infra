@@ -1,88 +1,180 @@
-# Prometheus storage migration: staged NVMe preparation
+# Prometheus NVMe cutover: maintenance runbook
 
-The live inventory was collected on 2026-09-25. **This PR stages only a new StorageClass and an unclaimed Local PV; it does not migrate the database or change the Helm chart.**
+**Do not merge the cutover PR just to stage it.** The root Argo CD Application auto-syncs files in `apps/`. This PR introduces a replacement PVC with the **same name** as the currently bound claim, and changes the Prometheus Helm claim template. Merging it while the old Prometheus is running can cause a failed or partially reconciled migration. First complete the maintenance steps below and merge only at the explicit checkpoint.
 
-## Verified source and destination
+The preflight output was supplied on 2026-09-25. It confirms the old TSDB contains approximately **2.9G** of data; the StatefulSet is one replica; container user/group are `1000:2000`, with `fsGroup: 2000`; and StatefulSet claim retention is `Retain` on both scale and deletion. **StatefulSet claim retention is separate from PV reclaim policy**. Verify the PV itself is `Retain` before deleting the claim.
 
-| Resource | Current state |
+## Verified resource names
+
+| Item | Value |
 | --- | --- |
-| Prometheus CR | `monitoring/kube-prometheus-stack-prometheus`, 1 replica, 10d retention |
-| StatefulSet | `monitoring/prometheus-kube-prometheus-stack-prometheus`, 1/1 ready |
-| Existing PVC | `prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0`, 10Gi, `local-path` |
-| Existing PV | `pvc-48745d94-d2f2-4903-aba8-b046376fafb3`, **Delete** reclaim policy at preflight |
-| Existing data directory | `/mnt/storage/pvc-48745d94-d2f2-4903-aba8-b046376fafb3_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0` |
-| New destination | `/srv/prometheus` on root ext4/NVMe |
-| Staged new resources | StorageClass `prometheus-direct`; Local PV `prometheus-direct-pv` (20Gi, Retain) |
-| Grafana PVC | `kube-prometheus-stack-grafana`; **out of scope**, leave on existing HDD |
+| Prometheus resource | `monitoring/kube-prometheus-stack-prometheus` |
+| StatefulSet | `monitoring/prometheus-kube-prometheus-stack-prometheus` |
+| Ordinal-0 PVC (old and replacement name) | `prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0` |
+| Old PV | `pvc-48745d94-d2f2-4903-aba8-b046376fafb3` |
+| Source directory on physical HDD | `/mnt/disk1/pvc-48745d94-d2f2-4903-aba8-b046376fafb3_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0` |
+| Staged new PV | `prometheus-direct-pv`, `20Gi`, `Retain` |
+| Target directory | `/srv/prometheus` on NVMe ext4 |
+| StorageClass | `prometheus-direct` |
 
-The recorded root ext4 filesystem had approximately 379G free at preflight. Verify space again immediately before any copy. The local PV capacity is a Kubernetes declaration; it is **not** a 20Gi filesystem quota on the NVMe.
+Grafana's `kube-prometheus-stack-grafana` PVC and the Immich volumes are **out of scope**.
 
-## Phase 1: safe preparation (this PR)
+## 0. Confirm stage 1 and old-volume protection
 
-The root Argo CD Application discovers `apps/prometheus-storage.yaml` and will create the unused StorageClass and PV after merge. The existing Prometheus Application, StatefulSet, PVC, and chart values remain unchanged. The new PV has `Retain` and Argo CD `Prune=false,Delete=false` protection.
-
-On HomeServer, verify the node's **Kubernetes hostname label**, not just the OS hostname:
+Run on HomeServer. All checks must pass before proceeding:
 
 ```bash
-kubectl get nodes -L kubernetes.io/hostname
-findmnt -T /srv -o TARGET,SOURCE,FSTYPE
+cd ~/HomeLab/homelab-k8s-infra
+OLD_PVC=prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+OLD_PV=pvc-48745d94-d2f2-4903-aba8-b046376fafb3
+NEW_PV=prometheus-direct-pv
+SRC=/mnt/disk1/pvc-48745d94-d2f2-4903-aba8-b046376fafb3_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+DST=/srv/prometheus
+
+test "$(kubectl -n monitoring get pvc "$OLD_PVC" -o jsonpath='{.spec.volumeName}')" = "$OLD_PV" || { echo "Old claim changed; STOP"; exit 1; }
+test "$(kubectl get pv "$OLD_PV" -o jsonpath='{.spec.persistentVolumeReclaimPolicy}')" = Retain || { echo "Old PV is NOT Retain; STOP"; exit 1; }
+test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.status.phase}')" = Available || { echo "New PV not Available; STOP"; exit 1; }
+test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.spec.local.path}')" = "$DST" || { echo "New PV path changed; STOP"; exit 1; }
+test "$(kubectl get pv "$NEW_PV" -o jsonpath='{.spec.persistentVolumeReclaimPolicy}')" = Retain || { echo "New PV not Retain; STOP"; exit 1; }
+test "$(kubectl get node homeserver -o jsonpath='{.metadata.labels.kubernetes\\.io/hostname}')" = homeserver || { echo "Node label mismatch; STOP"; exit 1; }
+test "$(findmnt -n -M /mnt/disk1 -o FSTYPE)" = ext4 || { echo "HDD not mounted as ext4; STOP"; exit 1; }
+test "$(findmnt -n -T /srv -o FSTYPE)" = ext4 || { echo "NVMe target not ext4; STOP"; exit 1; }
+sudo test -d "$SRC" || { echo "Original TSDB missing; STOP"; exit 1; }
+sudo test -d "$DST" || { echo "New directory missing; STOP"; exit 1; }
+test -z "$(sudo find "$DST" -mindepth 1 -maxdepth 1 -print -quit)" || { echo "New directory not empty; STOP"; exit 1; }
+
+kubectl -n monitoring get pvc "$OLD_PVC"
+kubectl get pv "$OLD_PV" "$NEW_PV"
 df -hT /srv
 ```
 
-The new PV's node affinity is `homeserver`, matching the existing Immich NVMe Local PV. If the actual Kubernetes hostname label differs, do **not** begin cutover; correct the PV manifest first.
+If the old PV is still `Delete`, STOP and perform the guarded `Retain` patch documented in the stage-one PR before any further step. Verify that the new PV is `Available` and the new directory is genuinely empty. Do not format any filesystem or modify the Immich PV.
 
-Protect the *existing dynamically provisioned* PV **before any PVC deletion**. Its original reclaim policy is `Delete`, and the local-path teardown helper recursively removes a released volume directory under that policy. Check the bound PV identity again before changing anything:
+Before downtime, confirm a recent working Immich database backup separately; this migration should never touch it.
+
+## 1. Pause BOTH Argo CD Applications before editing live resources
+
+The root App manages `apps/monitoring.yaml`. Disabling only the child App is insufficient: its parent may reapply the child Application and reenable automated sync. Temporarily remove automatic sync from the root **first**, then from the monitoring child:
 
 ```bash
-OLD_PVC=prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
-OLD_PV=pvc-48745d94-d2f2-4903-aba8-b046376fafb3
-ACTUAL_PV="$(kubectl -n monitoring get pvc "$OLD_PVC" -o jsonpath='{.spec.volumeName}')"
-test "$ACTUAL_PV" = "$OLD_PV" || { echo "PV changed; stop and re-inventory"; exit 1; }
-kubectl patch pv "$OLD_PV" --type merge \
-  -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
-kubectl get pv "$OLD_PV" -o jsonpath='{.spec.persistentVolumeReclaimPolicy}{"\n"}'
+kubectl -n argocd patch application root-application --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+kubectl -n argocd patch application kube-prometheus-stack --type=json \
+  -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+
+kubectl -n argocd get application root-application \
+  -o jsonpath='{.spec.syncPolicy.automated}{"\\n"}'
+kubectl -n argocd get application kube-prometheus-stack \
+  -o jsonpath='{.spec.syncPolicy.automated}{"\\n"}'
 ```
 
-Expected: `Retain`. This operation does **not** delete, detach, or move the existing PVC/data. Keep the old directory/PV throughout the migration and rollback period.
+Both final commands must print an empty line. If either is still automated, STOP. Do not manually sync either Application during downtime. These commands do not edit Git; they temporarily suspend automatic sync until restored below.
 
-Prepare a **new empty** directory on the NVMe (do not put this under `/mnt/storage`). The actual Prometheus data ownership will be preserved during the later offline copy:
+## 2. Stop Prometheus cleanly, then take the offline copy
 
 ```bash
-test "$(findmnt -n -T /srv -o FSTYPE)" = ext4 || { echo "Destination not ext4"; exit 1; }
-test ! -e /srv/prometheus || { echo "Destination already exists; inspect before proceeding"; exit 1; }
-sudo install -d -m 0750 /srv/prometheus
+kubectl -n monitoring patch prometheus kube-prometheus-stack-prometheus \
+  --type=merge -p '{"spec":{"paused":true}}'
+test "$(kubectl -n monitoring get prometheus kube-prometheus-stack-prometheus -o jsonpath='{.spec.paused}')" = true || { echo "Operator not paused; STOP"; exit 1; }
+
+kubectl -n monitoring scale statefulset/prometheus-kube-prometheus-stack-prometheus --replicas=0
+kubectl -n monitoring rollout status statefulset/prometheus-kube-prometheus-stack-prometheus --timeout=5m
+kubectl -n monitoring get pods
 ```
 
-After merging this PR, verify that Argo CD created only the staged resources:
+**Do not copy until the `prometheus-kube-prometheus-stack-prometheus-0` Pod is fully absent.** If the pod still exists or recreates, STOP; the Prometheus Operator or Argo CD may still be reconciling.
+
+With the pod stopped, copy the complete TSDB, including WAL/head data, directly from the HDD filesystem (not through mergerfs):
 
 ```bash
-kubectl get storageclass prometheus-direct
-kubectl get pv prometheus-direct-pv \
-  -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,CLASS:.spec.storageClassName,RECLAIM:.spec.persistentVolumeReclaimPolicy,PATH:.spec.local.path
+sudo rsync -aHAX --numeric-ids --info=progress2 "$SRC"/ "$DST"/
+sudo rsync -aHAX --numeric-ids --checksum --delete --dry-run --itemize-changes "$SRC"/ "$DST"/
+sudo stat -c '%u:%g %a %n' "$SRC" "$DST"
+sudo du -sh "$SRC" "$DST"
 ```
 
-Expected new PV: `Available` (no claim yet), `prometheus-direct`, `Retain`, `/srv/prometheus`. An unused PV does **not** move any live data.
+The checksum dry run should report no differences. Inspect ownership; the Prometheus process runs as UID `1000` / GID `2000` and has `fsGroup 2000`. Do not proceed if the copy is incomplete or permissions are wrong. The old source remains untouched.
 
-Also collect these **read-only** details for the cutover plan:
+## 3. Remove the OLD controller and claim, retaining the original HDD data
+
+Keep the Prometheus CR paused and both Argo CD Applications' automated sync off. Repeat these checks immediately before deletion:
 
 ```bash
+test "$(kubectl get pv "$OLD_PV" -o jsonpath='{.spec.persistentVolumeReclaimPolicy}')" = Retain || { echo "Old PV not Retain; STOP"; exit 1; }
+test "$(kubectl -n monitoring get pvc "$OLD_PVC" -o jsonpath='{.spec.volumeName}')" = "$OLD_PV" || { echo "Old claim changed; STOP"; exit 1; }
+test "$(kubectl -n monitoring get prometheus kube-prometheus-stack-prometheus -o jsonpath='{.spec.paused}')" = true || { echo "Operator not paused; STOP"; exit 1; }
+kubectl -n monitoring get pod prometheus-kube-prometheus-stack-prometheus-0
+```
+
+The final command must return `NotFound`. If it returns a Pod, STOP.
+
+```bash
+kubectl -n monitoring delete statefulset prometheus-kube-prometheus-stack-prometheus --cascade=orphan
+kubectl -n monitoring delete pvc "$OLD_PVC" --wait=true
+kubectl get pv "$OLD_PV"
+sudo test -d "$SRC" && echo "Original HDD data still present"
+```
+
+The old PV should be `Released`, with `Retain` reclaim policy. If the PV disappears or the directory is missing, STOP and investigate. **Never delete the old PV or data directory as part of this migration.**
+
+## 4. Merge the cutover PR ONLY NOW and bind the replacement PVC
+
+The root and child Argo CD Applications must still have automated sync disabled. Merge this PR, then pull the updated repository on HomeServer:
+
+```bash
+git pull --ff-only
+kubectl apply -f apps/prometheus-direct-pvc.yaml
+kubectl -n monitoring get pvc "$OLD_PVC" -o wide
+kubectl get pv "$NEW_PV"
+```
+
+Verify that the replacement claim is `Bound` to `prometheus-direct-pv`, with class `prometheus-direct` and request `20Gi`. If not, STOP; do not unpause the operator.
+
+## 5. Update the Prometheus CR while paused and resume it
+
+The Prometheus Operator creates the StatefulSet from the Prometheus CR, not directly from the local Git file. Since the old StatefulSet has been deleted, it can now create the replacement with the new immutable claim template. See the upstream operator's storage-change guidance.
+
+```bash
+kubectl -n monitoring patch prometheus kube-prometheus-stack-prometheus \
+  --type=merge \
+  -p '{"spec":{"storage":{"volumeClaimTemplate":{"spec":{"storageClassName":"prometheus-direct","resources":{"requests":{"storage":"20Gi"}}}}}}}'
+
+kubectl -n monitoring get prometheus kube-prometheus-stack-prometheus \
+  -o jsonpath='{.spec.storage.volumeClaimTemplate.spec.storageClassName}{" "}{.spec.storage.volumeClaimTemplate.spec.resources.requests.storage}{" "}{.spec.paused}{"\\n"}'
+```
+
+Expected: `prometheus-direct 20Gi true`. Only then:
+
+```bash
+kubectl -n monitoring patch prometheus kube-prometheus-stack-prometheus \
+  --type=merge -p '{"spec":{"paused":false}}'
+kubectl -n monitoring rollout status statefulset/prometheus-kube-prometheus-stack-prometheus --timeout=10m
+kubectl -n monitoring get pvc "$OLD_PVC" -o wide
 kubectl -n monitoring get statefulset prometheus-kube-prometheus-stack-prometheus \
-  -o jsonpath='{.spec.volumeClaimTemplates[0].metadata.name}{"\n"}{.spec.template.spec.securityContext}{"\n"}{.spec.persistentVolumeClaimRetentionPolicy}{"\n"}'
-sudo du -sh /mnt/storage/pvc-48745d94-d2f2-4903-aba8-b046376fafb3_monitoring_prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+  -o jsonpath='{.spec.volumeClaimTemplates[0].spec.storageClassName}{" "}{.spec.volumeClaimTemplates[0].spec.resources.requests.storage}{"\\n"}'
 ```
 
-**STOP HERE. Do not delete either PVC or PV, do not change the monitoring Helm chart, and do not point a second running Prometheus at either data directory.** Share the final command output for a separate cutover PR and planned maintenance window.
+Expected: one healthy Prometheus replica, replacement PVC bound to `prometheus-direct-pv`, and StatefulSet claim template `prometheus-direct 20Gi`. Check Grafana Prometheus data source and query some historical metrics from before the copy. Do not reenable GitOps until the TSDB and claim mapping have been validated.
 
-## Phase 2: planned cutover (NOT performed by this PR)
+## 6. Resume GitOps using the merged desired state
 
-To preserve the ten days of existing metrics, the eventual runbook must coordinate both Argo CD Applications (root and monitoring) and the Prometheus Operator so that they cannot immediately undo a manual stop. It will stop the single Prometheus replica cleanly, wait for the Pod to terminate, copy the offline TSDB (including WAL/head files) to `/srv/prometheus` with ownership preserved, validate the copy, and prepare the replacement pre-bound PVC. The replacement PVC has to use the **same StatefulSet ordinal claim name**, refer explicitly to `prometheus-direct-pv`, and match the new `prometheus-direct` class. The Helm chart's `volumeClaimTemplate` must be updated in coordination with the operator's StatefulSet recreation because that field is immutable on an existing StatefulSet.
+The merged `apps/monitoring.yaml` specifies `prometheus-direct` and `20Gi`, while `apps/prometheus-direct-pvc.yaml` declares the exact prebound claim. Reenable the root Application so it reconciles both resources and the child Application:
 
-The old PV must remain Retain and the old directory must remain intact until Prometheus is healthy on the new volume and its TSDB queries are validated. Restore GitOps reconciliation only after the new claim and StatefulSet have been checked. Explicitly confirm whether historical metrics are to be preserved; if they are disposable, a fresh empty TSDB is a different and shorter migration plan.
+```bash
+kubectl -n argocd patch application root-application --type=merge \
+  -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+kubectl -n argocd get application root-application kube-prometheus-stack \
+  -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status
+```
 
-Prometheus TSDB contains WAL and head data; copying it while Prometheus writes is not a consistent offline migration. Grafana, Alertmanager, and the Immich photo library/PostgreSQL volumes are outside scope.
+Wait for both to become `Synced` and `Healthy`. Verify the child Application has its original automated policy restored by the root's sync; if it remains absent, confirm the root is synced to the merged revision and then restore the child using the same merge-patch policy. Do not leave both Applications paused indefinitely.
 
-## Phase 3: rollback and cleanup
+Recheck both old/new PVs and the full metric history before retiring rollback. Keep the old HDD directory and old Retain PV for a separate, later cleanup decision.
 
-If the new TSDB fails to start, stop the new Prometheus before considering rollback, preserve its data for diagnosis, and reattach the retained **old** volume using its known claim mapping. Do not delete either old data directory or old PV until rollback has been explicitly retired. Reclaiming a Retain PV for another PVC requires deliberate release/rebinding; never assume an old Released PV will bind automatically.
+## Rollback / STOP conditions
 
-A future PR may add actual cutover commands only after reviewing the live state collected in Phase 1. This stage-one PR deliberately contains no destructive steps or changes to running workloads.
+If a check fails **before deleting the old PVC**, keep the old volume and undo temporary pauses; do not merge this PR.
+
+If a failure occurs **after deleting the old PVC**, leave both Argo CD Applications paused and the Prometheus CR paused. Preserve the copied NVMe TSDB. The retained HDD PV is `Released` and still has the old claimRef UID: rebinding it requires deliberate removal of that stale claimRef and creation of a prebound PVC with the old `local-path` class and original claim name. Restore the old Prometheus CR storage template and recreate its StatefulSet via the operator. Revert the GitOps cutover change before resuming automatic sync; otherwise GitOps will try to reapply the new mapping. Do not improvise PVC/PV deletions. Ask for a state-specific rollback command sequence if you hit this point.
+
+Neither this procedure nor the staged PV protects against NVMe failure without backups. Prometheus metrics are separate from Immich; avoid touching Immich or Grafana storage.
