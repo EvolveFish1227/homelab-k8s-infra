@@ -80,6 +80,7 @@ homelab-k8s-infra/
 │   ├── immich.yaml                 # Immich Helm app, server, Valkey, ML & Ingress
 │   ├── immich-postgres.yaml        # PostgreSQL 18 Deployment, Service, legacy PVC
 │   ├── immich-postgres-storage.yaml # Dedicated NVMe StorageClass, PV and PVC
+│   ├── prometheus-storage.yaml      # Staged NVMe Local PV (not yet in use)
 │   ├── immich-resources.yaml       # Immich library PVC app
 │   └── samba.yaml                  # Samba SMB/CIFS LAN file sharing app
 └── infrastructure/                 # Manifests, Helm values & storage specs
