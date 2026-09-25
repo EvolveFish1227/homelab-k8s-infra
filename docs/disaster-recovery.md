@@ -60,6 +60,8 @@ Retain separate, tested copies of both the full media directory and a PostgreSQL
 
 The legacy `immich-postgres-pvc` is a historical rollback copy, not a continuously updated backup.
 
+For manual or optional scheduled PostgreSQL dumps to the existing HDD, see [Immich PostgreSQL backups](immich-postgres-backup.md). This does not back up the media library, and does not protect against loss of that HDD.
+
 ## 4. Additional recovery material
 
 Record the k3s version, host mount definitions, DNS settings, and Argo CD bootstrap procedure outside the cluster. Preserve k3s datastore backup and the server token when doing a full control-plane restoration; this is a different procedure from restoring application data.
