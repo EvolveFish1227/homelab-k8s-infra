@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Immich PostgreSQL backup
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=15min
+Persistent=true
+Unit=homelab-immich-postgres-backup.service
+
+[Install]
+WantedBy=timers.target
