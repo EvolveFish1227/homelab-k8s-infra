@@ -24,6 +24,9 @@ jobs:
       - name: Install YAML validator
         run: python -m pip install PyYAML==6.0.2
 
+      - name: Check PostgreSQL backup script syntax
+        run: bash -n scripts/backup_immich_postgres.sh
+
       - name: Check CA backup utility syntax and command-line interface
         run: |
           python -m py_compile scripts/backup_homelab_ca.py
