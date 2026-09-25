@@ -1,5 +1,5 @@
 # homelab-k8s-infra
-This repository drives declarative cluster state synchronization, automated deployments, secret encapsulation, and observability stack provisioning without manual kubectl intervention.
+This repository drives declarative cluster state synchronization, automated deployments, storage configuration, and observability stack provisioning without manual kubectl intervention.
 
 # HomeLab Infrastructure & Storage Engine (Samba/SMB & GitOps)
 
@@ -54,8 +54,8 @@ This project implements enterprise-grade Infrastructure-as-Code (IaC) and GitOps
 - **Observability:** Prometheus Operator (`kube-prometheus-stack`) + Custom Grafana Dashboards
 - **Storage Subsystems:**
   - **Local Dynamic Engine:** Rancher `local-path-provisioner` mapped to host storage pools (`/mnt/storage`)
-  - **LAN Gateways:** In-cluster Samba (SMB) / NFS server gateways to share host pools outward to home devices
-- **Network Protocols:** SMB/CIFS (`Port 445`), NFS (`Port 2049`), and HTTPS (`Port 443`)
+  - **LAN Gateways:** In-cluster Samba (SMB) gateway to share the host storage pool with home devices
+- **Network Protocols:** SMB/CIFS (`Port 445`) and HTTPS (`Port 443`)
 
 ---
 
@@ -75,8 +75,10 @@ homelab-k8s-infra/
 │   ├── local-path-provisioner.yaml # Local path provisioner storage app
 │   ├── monitoring.yaml             # Prometheus & Grafana monitoring stack app
 │   ├── monitoring-resources.yaml   # Custom Grafana dashboards & alerts app
-│   ├── immich.yaml                 # Immich photo suite, DB, Redis, ML & Ingress
-│   ├── immich-resources.yaml       # Immich persistent volume claim app
+│   ├── immich.yaml                 # Immich Helm app, server, Valkey, ML & Ingress
+│   ├── immich-postgres.yaml        # PostgreSQL 18 Deployment, Service, legacy PVC
+│   ├── immich-postgres-storage.yaml # Dedicated NVMe StorageClass, PV and PVC
+│   ├── immich-resources.yaml       # Immich library PVC app
 │   └── samba.yaml                  # Samba SMB/CIFS LAN file sharing app
 └── infrastructure/                 # Manifests, Helm values & storage specs
     ├── storage/                    # Kubernetes storage engine configurations
@@ -92,7 +94,7 @@ homelab-k8s-infra/
         ├── samba-secret.yaml       # Encrypted credentials for SMB shares
         ├── samba-configmap.yaml    # Shares definition and auth mapping config
         ├── samba-deployment.yaml   # Container specification mounting /mnt/storage
-        └── samba-service.yaml      # LoadBalancer service exposing port 445
+        └── samba-service.yaml      # ClusterIP service for port 445
 ```
 
 ---
@@ -102,18 +104,26 @@ homelab-k8s-infra/
 ### 1. High-Performance Host-Path Storage (`local-path-provisioner`)
 Standard cloud-based Kubernetes relies on network-attached block storage (like AWS EBS), which introduces network latency and limits I/O.
 * **Design Choice:** Utilized Rancher's **local-path-provisioner** mapped directly to the bare-metal host's physical storage pools (e.g., `/mnt/storage`).
-* **Engineering Impact:** Provides native SSD/HDD performance with zero network-hop latency. Since all data resides directly on the host, filesystem operations (like SQLite queries in Immich or large photo asset transfers) execute at local hardware speeds.
+* **Engineering Impact:** Provides host-local storage for media and general workloads. The Immich PostgreSQL database uses a separate direct ext4 local PV on the NVMe, not the mergerfs-backed `/mnt/storage` pool.
 
 ### 2. Dual-Layer Storage Interfaces (In-Cluster vs. LAN Gateways)
 To unify Kubernetes persistent storage with standard home network file sharing:
-* **Cluster Workloads:** Applications consume dynamic Persistent Volume Claims (PVCs) provisioned directly through Kubernetes StorageClasses.
-* **Local LAN Clients:** Non-containerized devices (macOS Finder, Windows File Explorer, Smart TVs) access the identical physical storage pools via in-cluster Samba (SMB) and NFS server gateways exposed on dedicated LAN ports (`445` / `2049`).
+* **Cluster Workloads:** Media and general workloads use dynamic PVCs. PostgreSQL uses a static Local PersistentVolume on a direct ext4 filesystem.
+* **Local LAN Clients:** Non-containerized devices (macOS Finder and Windows File Explorer) access the storage pool through the Samba gateway on port `445`.
 
 ### 3. Decoupled Compute & Storage (Stateful Isolation)
-To guarantee zero data loss during node rebuilds, cluster upgrades, or pod failures:
+To keep persistent data separate from ordinary pod lifecycles, while recognizing that cluster or disk failure still requires tested backups:
 * **Host Layer:** All physical storage drives are managed at the OS level and mounted to dedicated paths (e.g., `/mnt/storage`).
 * **K8s Abstraction:** Kubernetes workloads interact strictly through persistent volume abstractions layered on top of host mounts. 
-* **Engineering Impact:** Total cluster teardown or re-initialization does not alter underlying datasets, preserving all media and configuration states.
+* **Engineering Impact:** Retained PVs and independently verified database and media backups are required before teardown or re-initialization. PVC deletion, a `Delete` reclaim policy, or a storage teardown helper can remove data. Do not assume a cluster rebuild is lossless.
+
+---
+
+## Immich backup and storage recovery
+
+The Immich library and PostgreSQL database are separate data stores; back up both before migration, PVC removal, or cluster teardown. PostgreSQL runs directly on the NVMe ext4 filesystem at `/srv/immich-postgres`, while media remains on `immich-library-pvc` in the storage pool. Keep an independent copy of database dumps and media outside the same underlying disk.
+
+The statically provisioned PostgreSQL PV uses `Retain`. The library uses a dynamically provisioned PV: verify the *existing PV's* reclaim policy independently, since changing a StorageClass does not retroactively change an existing volume. The library PVC uses Argo CD `Prune=false,Delete=false` for GitOps deletion protection; this is not a substitute for a backup. The legacy PostgreSQL PVC is retained for rollback but is not a current backup once new database writes occur.
 
 ---
 
@@ -200,13 +210,13 @@ The following primary web services are deployed and managed under GitOps:
 ### 📸 Immich (Self-Hosted Photo Backup Engine)
 * **URL:** [https://photos.homelab.com](https://photos.homelab.com)
 * **Configuration:** Manifest declared in `apps/immich.yaml`.
-* **Database Backend:** Implemented with `postgresql` using `tensorchord/pgvecto-rs` for vector-enabled AI search. Managed cleanly via a custom `immich` superuser credential.
-* **Storage Engine:** High-capacity 500Gi Persistent Volume Claim (`immich-library-pvc`) dynamic local-path mount, declared in `infrastructure/immich/library-pvc.yaml` and deployed via the `immich-resources` Argo CD application.
+* **Database Backend:** PostgreSQL 18 with VectorChord 1.1.1 (`ghcr.io/immich-app/postgres:18-vectorchord1.1.1`) in `apps/immich-postgres.yaml`.
+* **Storage Engine:** The 500Gi media PVC (`immich-library-pvc`) uses the existing local-path storage pool. PostgreSQL uses `immich-postgres-direct-pvc`, a statically provisioned local PV at `/srv/immich-postgres` on the NVMe ext4 filesystem, with `Retain` reclaim policy.
 * **Resiliency Engineering:** Configured with an optimized `probes.startup` grace period of **20 minutes** (120 attempts × 10s) to permit seamless, uninterrupted geodata map indexing and database migrations on startup.
 
 ### 📁 Samba (SMB/CIFS LAN File-Sharing Gateway)
 * **Configuration:** Manifest declared in `apps/samba.yaml` pointing to `infrastructure/samba/`.
-* **Exposed Port:** `445` (mapped to your host LAN IP via K3s LoadBalancer Service).
+* **Exposed Port:** `445` on the host LAN interface using `hostNetwork: true`; the Kubernetes Service is `ClusterIP`.
 * **Protocol Details:** High-performance, lightweight SMB daemon based on `crazymax/samba`. Fully supports Windows Service Discovery (WSDD2) to seamlessly populate in your local network browsers.
 * **Access Credentials:** 
   - **Username:** `homelab`
