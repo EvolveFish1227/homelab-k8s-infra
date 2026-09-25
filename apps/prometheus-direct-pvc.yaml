@@ -1,0 +1,20 @@
+# CUTOVER ONLY: do not merge this PR until BOTH Argo CD Applications
+# (root-application and kube-prometheus-stack) have automated sync disabled,
+# the old Prometheus process is stopped, the old PVC has been deleted with
+# its PV reclaim policy verified Retain, and the offline TSDB copy is verified.
+# This is the existing StatefulSet ordinal-0 claim name, not a second claim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: prometheus-direct
+  volumeName: prometheus-direct-pv
+  resources:
+    requests:
+      storage: 20Gi
