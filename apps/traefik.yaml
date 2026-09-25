@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: traefik-ingress
   namespace: argocd
-  finalizers:
-    - argocd.argoproj.io/resources-finalizer
 spec:
   project: default
   source:
