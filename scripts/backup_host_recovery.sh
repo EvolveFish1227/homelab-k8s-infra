@@ -102,24 +102,55 @@ systemctl show k3s -p FragmentPath -p LoadState -p UnitFileState \
 cp -- "$K3S_ENCRYPTION_DROPIN" "$staging/k3s-config/20-secrets-encryption.yaml"
 k3s secrets-encrypt status >"$staging/k3s-secrets-encryption-status.txt"
 
-# Record only a whitelisted, non-secret subset of the running k3s server arguments.
-# Token, datastore endpoint, kubeconfig, credential, and arbitrary environment values
-# are intentionally never captured.
+# Record only a whitelisted, non-secret subset of the configured k3s server
+# arguments. k3s rewrites its Linux process title, so /proc/<pid>/cmdline may
+# collapse to a single string such as "/usr/local/bin/k3s server" and lose the
+# original flags. Parse the systemd unit's ExecStart instead, and never emit raw
+# unit text or unapproved arguments.
 python3 - <<'PY' >"$staging/k3s-runtime-args.txt"
+import shlex
 import subprocess
+from pathlib import Path
 
-pid = subprocess.check_output(
-    ["systemctl", "show", "k3s", "-p", "MainPID", "--value"],
+fragment = subprocess.check_output(
+    ["systemctl", "show", "k3s", "-p", "FragmentPath", "--value"],
     text=True,
 ).strip()
-if not pid or pid == "0":
-    raise SystemExit("k3s has no running MainPID")
+if not fragment:
+    raise SystemExit("k3s has no FragmentPath")
 
-args = [
-    part.decode(errors="replace")
-    for part in open(f"/proc/{pid}/cmdline", "rb").read().split(b"\0")
-    if part
-]
+unit_text = Path(fragment).read_text(encoding="utf-8")
+
+# Join systemd continuation lines, then extract the ExecStart command. The k3s
+# installer emits shell-like quoting here; shlex is used only for tokenization.
+logical_lines = []
+current = ""
+for raw in unit_text.splitlines():
+    line = raw.rstrip()
+    if current:
+        current += line.lstrip()
+    else:
+        current = line
+    if current.endswith("\\"):
+        current = current[:-1] + " "
+        continue
+    logical_lines.append(current)
+    current = ""
+if current:
+    logical_lines.append(current)
+
+exec_line = next(
+    (line for line in logical_lines if line.lstrip().startswith("ExecStart=")),
+    None,
+)
+if exec_line is None:
+    raise SystemExit("k3s unit has no ExecStart")
+
+command = exec_line.split("=", 1)[1].strip()
+try:
+    args = shlex.split(command, posix=True)
+except ValueError as exc:
+    raise SystemExit(f"Could not parse k3s ExecStart safely: {exc}")
 
 value_flags = {
     "--disable",
@@ -148,6 +179,8 @@ safe = []
 i = 0
 while i < len(args):
     token = args[i]
+
+    # The executable itself is intentionally omitted.
     if token == "server":
         safe.append(token)
     elif token in flag_only:
@@ -155,15 +188,19 @@ while i < len(args):
     elif any(token.startswith(flag + "=") for flag in flag_only):
         safe.append(token)
     elif token in value_flags:
-        if i + 1 < len(args):
-            safe.extend([token, args[i + 1]])
-            i += 1
+        if i + 1 >= len(args):
+            raise SystemExit(f"Missing value for whitelisted k3s flag: {token}")
+        safe.extend([token, args[i + 1]])
+        i += 1
     else:
         for flag in value_flags:
             if token.startswith(flag + "="):
                 safe.append(token)
                 break
     i += 1
+
+if not safe or "server" not in safe:
+    raise SystemExit("Could not identify the k3s server ExecStart safely")
 
 print(" ".join(safe))
 PY
