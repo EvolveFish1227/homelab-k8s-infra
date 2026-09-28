@@ -79,8 +79,11 @@ spec:
         - name: data-dir
           emptyDir: {}
         - name: config
-          configMap:
-            name: samba-config
+          secret:
+            secretName: samba-runtime-config
+            items:
+              - key: config.yml
+                path: config.yml
         - name: storage
           hostPath:
             path: /mnt/storage

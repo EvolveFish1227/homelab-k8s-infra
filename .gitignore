@@ -4,3 +4,10 @@
 
 # OS generated files
 .DS_Store
+
+# Local runtime secrets and working files (never commit credentials)
+.secrets/
+.env
+.env.*
+!.env.example
+*.secret.yaml
