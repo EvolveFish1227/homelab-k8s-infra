@@ -62,9 +62,19 @@ The legacy `immich-postgres-pvc` is a historical rollback copy, not a continuous
 
 For manual or optional scheduled PostgreSQL dumps to the existing HDD, see [Immich PostgreSQL backups](immich-postgres-backup.md). This does not back up the media library, and does not protect against loss of that HDD.
 
-## 4. Additional recovery material
+## 4. Host recovery material
 
-Record the k3s version, host mount definitions, DNS settings, and Argo CD bootstrap procedure outside the cluster. Preserve k3s datastore backup and the server token when doing a full control-plane restoration; this is a different procedure from restoring application data.
+Capture the non-secret host rebuild metadata with:
+
+```bash
+sudo bash scripts/backup_host_recovery.sh
+```
+
+The snapshot is stored under `/mnt/disk1/homelab-backups/host` with SHA-256 checksums and bounded retention. It records the hostname, OS/k3s version, block-device UUIDs, mount layout, persistent-path ownership/modes, selected non-secret k3s runtime options, PV/PVC identities, and the dedicated `secrets-encryption: true` drop-in.
+
+It intentionally excludes Kubernetes Secrets, the admin kubeconfig, the k3s server token, and encryption key material.
+
+For the complete replacement-NVMe procedure, including mount restoration, exact-version k3s installation without auto-start, SQLite/server-token restore, Secrets-encryption verification, and application-data recovery ordering, see [Root NVMe disaster recovery](root-nvme-recovery.md).
 
 
 ## 5. Automated k3s control-plane backup
