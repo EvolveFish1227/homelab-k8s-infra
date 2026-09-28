@@ -128,6 +128,8 @@ See the [disaster recovery runbook](docs/disaster-recovery.md) for the offline C
 
 For online PostgreSQL backups to the existing HDD, see [Immich database backups](docs/immich-postgres-backup.md). This does not replace independent media backups.
 
+For catastrophic root-NVMe loss with the HDD still intact, see the [root NVMe recovery runbook](docs/root-nvme-recovery.md). The companion `scripts/backup_host_recovery.sh` captures non-secret host rebuild metadata without exporting Kubernetes Secrets, kubeconfig, the k3s server token, or encryption key material.
+
 Before moving Prometheus to NVMe, run the [read-only monitoring storage preflight](docs/prometheus-storage-migration.md).
 
 The Immich library and PostgreSQL database are separate data stores; back up both before migration, PVC removal, or cluster teardown. PostgreSQL runs directly on the NVMe ext4 filesystem at `/srv/immich-postgres`, while media remains on `immich-library-pvc` in the storage pool. Keep an independent copy of database dumps and media outside the same underlying disk.
