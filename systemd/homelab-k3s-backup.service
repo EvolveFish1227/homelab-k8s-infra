@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up k3s SQLite datastore and server token to the mounted HDD
+RequiresMountsFor=/mnt/disk1
+After=local-fs.target k3s.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/homelab-k3s-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

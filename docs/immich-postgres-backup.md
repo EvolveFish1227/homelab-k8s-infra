@@ -2,7 +2,7 @@
 
 The live database is PostgreSQL 18 on the NVMe at `/srv/immich-postgres`. The physical HDD is the ext4 filesystem mounted at `/mnt/disk1`, which is also the underlying disk for the mergerfs media pool. This backup protects against an NVMe failure **if the HDD remains healthy**; it does not protect against failure of the HDD or loss of the entire HomeServer.
 
-This script performs an online, custom-format `pg_dump` of the live `immich` database. It checks that the destination is a mounted ext4 filesystem, avoids concurrent backup jobs, reads/decompresses the archive using `pg_restore --file=/dev/null` inside the matching PostgreSQL container, and writes a SHA-256 checksum. It does not overwrite or automatically delete existing backups. It does not change the running database or Kubernetes resources.
+This script performs an online, custom-format `pg_dump` of the live `immich` database. It checks that the destination is a mounted ext4 filesystem, avoids concurrent backup jobs, requires at least 100 GiB free before starting, reads/decompresses the archive using `pg_restore --file=/dev/null` inside the matching PostgreSQL container, and writes a SHA-256 checksum. Only after a new dump has passed validation does retention run: keep at most the newest 14 dumps and target a maximum PostgreSQL backup-directory size of 100 GiB. The newest validated dump is never deleted merely to satisfy the size target.
 
 The generated SQL validation is **not** a test restore into a database. Periodically perform a separate restore to an isolated test database.
 
@@ -18,7 +18,7 @@ sudo install -d -m 700 -o "$USER" -g "$(id -gn)" /mnt/disk1/homelab-backups/post
 bash scripts/backup_immich_postgres.sh
 ```
 
-Check that you see the successful checksum result and a nonempty `.dump` file. The backup directory is:
+Check that you see the successful checksum result and a nonempty `.dump` file. A successful run may also prune old validated dump/checksum pairs according to the retention policy. The backup directory is:
 
 ```text
 /mnt/disk1/homelab-backups/postgres/immich-YYYYMMDDTHHMMSSZ.dump
