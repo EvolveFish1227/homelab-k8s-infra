@@ -65,3 +65,36 @@ For manual or optional scheduled PostgreSQL dumps to the existing HDD, see [Immi
 ## 4. Additional recovery material
 
 Record the k3s version, host mount definitions, DNS settings, and Argo CD bootstrap procedure outside the cluster. Preserve k3s datastore backup and the server token when doing a full control-plane restoration; this is a different procedure from restoring application data.
+
+
+## 5. Automated k3s control-plane backup
+
+The single-node cluster uses the embedded SQLite datastore at `/var/lib/rancher/k3s/server/db/state.db`. The control-plane backup script stops k3s briefly, archives `server/db` plus `server/token`, restarts k3s even if the archive step fails, validates the archive and SHA-256 checksum, and retains the latest 8 successful backups on the mounted HDD.
+
+Install the root-owned script and systemd units:
+
+```bash
+sudo install -m 0755 scripts/backup_k3s_control_plane.sh /usr/local/sbin/homelab-k3s-backup
+sudo install -m 0644 systemd/homelab-k3s-backup.service /etc/systemd/system/homelab-k3s-backup.service
+sudo install -m 0644 systemd/homelab-k3s-backup.timer /etc/systemd/system/homelab-k3s-backup.timer
+sudo systemctl daemon-reload
+```
+
+Run one test backup before enabling the timer:
+
+```bash
+sudo systemctl start homelab-k3s-backup.service
+sudo systemctl status homelab-k3s-backup.service --no-pager
+sudo ls -lah /mnt/disk1/homelab-backups/k3s
+```
+
+Then enable the weekly timer:
+
+```bash
+sudo systemctl enable --now homelab-k3s-backup.timer
+sudo systemctl list-timers --all | grep homelab-k3s-backup
+```
+
+The timer runs Sundays at 03:30 with up to 30 minutes of randomized delay, away from the daily Immich PostgreSQL timer around midnight. It is persistent, so a missed run is attempted after the host returns. A k3s backup causes a brief cluster outage while SQLite is archived.
+
+The HDD remains a local-only recovery target. Loss of the entire HomeServer or simultaneous loss of both disks is not covered.
