@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly k3s control-plane backup
+
+[Timer]
+OnCalendar=Sun *-*-* 03:30:00
+RandomizedDelaySec=30min
+Persistent=true
+Unit=homelab-k3s-backup.service
+
+[Install]
+WantedBy=timers.target
