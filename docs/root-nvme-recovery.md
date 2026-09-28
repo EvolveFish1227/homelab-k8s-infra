@@ -49,7 +49,7 @@ The bundle records:
 
 - hostname and OS/kernel information
 - exact k3s version
-- a whitelisted non-secret subset of the running k3s arguments
+- a whitelisted non-secret subset of the k3s systemd `ExecStart` arguments
 - `/etc/fstab` as a **reference copy**
 - block-device UUIDs and current mount layout
 - persistent-path modes/owners for `/mnt/disk1`, `/mnt/storage`, `/srv/immich-postgres`, and `/srv/prometheus`
@@ -151,7 +151,7 @@ K3S_VERSION="$(awk '/^k3s version / {print $3; exit}' "$HOST_BACKUP/k3s-version.
 echo "$K3S_VERSION"
 ```
 
-Use the saved non-secret runtime arguments to reproduce design-critical server options. The repository's current bootstrap design disables the built-in Traefik and local-storage components because those are managed separately through GitOps. Do not add a token or datastore endpoint from memory.
+Use the saved non-secret runtime arguments, captured from the k3s systemd `ExecStart`, to reproduce design-critical server options. The repository's current bootstrap design disables the built-in Traefik and local-storage components because those are managed separately through GitOps. Do not add a token or datastore endpoint from memory.
 
 Example for the current design:
 
