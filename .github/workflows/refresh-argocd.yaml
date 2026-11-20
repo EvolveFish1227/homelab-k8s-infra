@@ -1,0 +1,37 @@
+name: Refresh Argo CD after merge
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: argocd-root-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on:
+      - self-hosted
+      - linux
+      - homelab
+    timeout-minutes: 5
+
+    steps:
+      - name: Request immediate root application refresh
+        env:
+          KUBECONFIG: ${{ github.workspace }}/.kube/argocd-refresh
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$(dirname "$KUBECONFIG")"
+          cp "$HOME/.kube/argocd-refresh" "$KUBECONFIG"
+          chmod 600 "$KUBECONFIG"
+
+          kubectl -n argocd annotate application root-application \
+            argocd.argoproj.io/refresh=hard \
+            --overwrite
+
+          rm -f "$KUBECONFIG"
